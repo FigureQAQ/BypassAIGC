@@ -15,24 +15,9 @@
 - `package/start-app.ps1` 和 `package/build.ps1` 已保存为 UTF-8 with BOM，兼容 Windows PowerShell 5.1，避免脚本里的中文提示显示为乱码。
 - 如果手动运行脚本，推荐使用 `package/start-app.bat` 或在 PowerShell 中执行 `.\start-app.ps1`；脚本会自动处理中文编码。
 
-专业论文润色与语言优化系统
-<img width="2080" height="1361" alt="图片" src="https://github.com/user-attachments/assets/c11abdc9-4bc4-4d61-bea0-13071dba01cd" />
+专业论文润色与语言优化系统，适合本地部署、论文草稿预处理、文档格式保留导出和多阶段语言优化。
 
-<img width="2103" height="1337" alt="图片" src="https://github.com/user-attachments/assets/523da9c2-899d-4739-932e-84af881a1dfd" />
-
-
- ## 效果
- 
-示例一
-<img width="1785" height="654" alt="图片" src="https://github.com/user-attachments/assets/4c96dc66-aa43-432e-90a0-57f7d89dd0f2" />
-修改优化后
- <img width="1946" height="672" alt="图片" src="https://github.com/user-attachments/assets/a46f5d62-30ec-4930-b558-18bd24d0e86f" />
-例二
-<img width="1958" height="662" alt="图片" src="https://github.com/user-attachments/assets/de871360-c045-46ec-8e96-7b3c100af147" />
-修改优化后
-<img width="1772" height="665" alt="图片" src="https://github.com/user-attachments/assets/3fd2d052-d62e-41fd-8215-fbc375e0d0e5" />
-gptzero
-<img width="2224" height="547" alt="图片" src="https://github.com/user-attachments/assets/b5daf3cb-6e3f-401c-bdc2-a9a88dcbdb35" />
+> 截图素材已移除。后续请使用本仓库实际运行界面的截图，避免引用其他仓库的附件图片。
 
 ## 快速开始
 
@@ -72,7 +57,7 @@ API 文档: http://localhost:9800/docs
 
 无需安装任何开发环境，下载即可使用！
 
-1. 从 [Releases](https://github.com/chi111i/BypassAIGC/releases) 页面下载对应平台的可执行文件：
+1. 从 [Releases](https://github.com/uhwr/BypassAIGC/releases) 页面下载对应平台的可执行文件：
    - Windows: `BypassAIGC-Windows-vX.X.X.zip`
    - macOS: `BypassAIGC-macOS-vX.X.X.tar.gz`
    - Linux: `BypassAIGC-Linux-vX.X.X.tar.gz`
@@ -298,7 +283,7 @@ git push origin v1.0.0
 
 Creative Commons (CC BY-NC-SA 4.0)
 
-[![Star History Chart](https://api.star-history.com/svg?repos=chi111i/BypassAIGC&type=Date)](https://star-history.com/#chi111i/BypassAIGC)
+[![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
 
 
 
