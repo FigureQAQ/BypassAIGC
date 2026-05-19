@@ -1,0 +1,678 @@
+import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  FileText, History, Play, Upload, X,
+  Users, Clock, AlertCircle, CheckCircle, Trash2, Info
+} from 'lucide-react';
+import { optimizationAPI } from '../api';
+
+// 会话列表项组件 - 使用 memo 避免不必要重渲染
+const SessionItem = memo(({ session, activeSession, onView, onDelete, onRetry }) => {
+  const handleDelete = useCallback((e) => {
+    e.stopPropagation();
+    onDelete(session);
+  }, [session, onDelete]);
+
+  const handleRetry = useCallback((e) => {
+    e.stopPropagation();
+    if (session.status === 'failed') {
+      onRetry(session);
+    }
+  }, [session, onRetry]);
+
+  const handleView = useCallback(() => {
+    onView(session.session_id);
+  }, [session.session_id, onView]);
+
+  return (
+    <div
+      onClick={handleView}
+      className="group p-3 rounded-xl hover:bg-gray-50 transition-all cursor-pointer border border-transparent hover:border-gray-100 relative"
+    >
+      <div className="flex items-start justify-between mb-1.5 gap-2">
+        <div className="flex items-center gap-1.5">
+          {session.status === 'completed' && (
+            <CheckCircle className="w-4 h-4 text-ios-green" />
+          )}
+          {session.status === 'processing' && (
+            <div className="w-4 h-4 border-2 border-ios-blue border-t-transparent rounded-full animate-spin" />
+          )}
+          {session.status === 'failed' && (
+            <AlertCircle className="w-4 h-4 text-ios-red" />
+          )}
+          {session.status === 'stopped' && (
+            <AlertCircle className="w-4 h-4 text-orange-500" />
+          )}
+          <span className={`text-[13px] font-medium ${
+            session.status === 'completed' ? 'text-black' :
+            session.status === 'processing' ? 'text-ios-blue' :
+            session.status === 'failed' ? 'text-ios-red' :
+            session.status === 'stopped' ? 'text-orange-600' : 'text-ios-gray'
+          }`}>
+            {session.status === 'completed' && '已完成'}
+            {session.status === 'processing' && '处理中'}
+            {session.status === 'queued' && '排队中'}
+            {session.status === 'failed' && '失败'}
+            {session.status === 'stopped' && '已停止'}
+          </span>
+        </div>
+
+        <span className="text-[11px] text-ios-gray/70 font-medium">
+          {new Date(session.created_at).toLocaleDateString()}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+          session.source_type === 'docx' ? 'bg-blue-50 text-ios-blue' :
+          session.source_type === 'pdf' ? 'bg-red-50 text-ios-red' :
+          session.source_type === 'md' ? 'bg-purple-50 text-purple-600' :
+          'bg-gray-100 text-ios-gray'
+        }`}>
+          {session.source_type === 'docx' ? 'Word' : session.source_type === 'pdf' ? 'PDF' : session.source_type === 'md' ? 'MD' : '文本'}
+        </span>
+        {(session.word_count > 0 || session.original_char_count > 0) && (
+          <span className="text-[11px] text-ios-gray">
+            {session.word_count > 0 ? `${session.word_count} 字/词` : `${session.original_char_count} 字符`}
+          </span>
+        )}
+      </div>
+
+      <p className="text-[13px] text-ios-gray leading-snug line-clamp-2 mb-2 pr-6">
+        {session.source_filename || session.preview_text || '暂无预览'}
+      </p>
+
+      {session.status === 'processing' && (
+        <div className="w-full bg-gray-100 rounded-full h-1 mb-1">
+          <div
+            className="bg-ios-blue h-1 rounded-full"
+            style={{ width: `${session.progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* 操作按钮 */}
+      <div className="flex items-center justify-between mt-1">
+        {session.status === 'failed' && (
+          <button
+            onClick={handleRetry}
+            className="px-2 py-1 text-xs bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200"
+          >
+            继续处理
+          </button>
+        )}
+        <button
+          onClick={handleDelete}
+          className="p-1.5 text-gray-300 hover:text-ios-red hover:bg-red-50 rounded-lg transition-colors ml-auto"
+          title="删除会话"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {session.status === 'failed' && session.current_position < session.total_segments && (
+        <div className="text-[11px] text-ios-red bg-red-50 px-2 py-1 rounded mt-1">
+          {session.error_message ? '发生错误' : '网络超时'}
+        </div>
+      )}
+    </div>
+  );
+});
+
+SessionItem.displayName = 'SessionItem';
+
+const WorkspacePage = () => {
+  const [text, setText] = useState('');
+  const [inputMode, setInputMode] = useState('text');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [processingMode, setProcessingMode] = useState('paper_polish_enhance');
+  const [sessions, setSessions] = useState([]);
+  const [queueStatus, setQueueStatus] = useState(null);
+  const [activeSession, setActiveSession] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const fileInputRef = useRef(null);
+  const sessionsRequestRef = useRef(false);
+  const queueRequestRef = useRef(false);
+  const progressRequestRef = useRef(false);
+  const navigate = useNavigate();
+
+  // 使用 useCallback 优化函数引用稳定性
+  const loadSessions = useCallback(async () => {
+    if (sessionsRequestRef.current) {
+      return;
+    }
+
+    try {
+      sessionsRequestRef.current = true;
+      setIsLoadingSessions(true);
+      const response = await optimizationAPI.listSessions();
+      setSessions(response.data);
+
+      // 查找正在处理的会话
+      const processing = response.data.find(
+        s => s.status === 'processing' || s.status === 'queued'
+      );
+      setActiveSession(processing ? processing.session_id : null);
+    } catch (error) {
+      console.error('加载会话失败:', error);
+    } finally {
+      sessionsRequestRef.current = false;
+      setIsLoadingSessions(false);
+    }
+  }, []);
+
+  // loadQueueStatus 不依赖 activeSession，避免 useEffect 重复触发
+  const loadQueueStatus = useCallback(async () => {
+    if (queueRequestRef.current) {
+      return;
+    }
+
+    try {
+      queueRequestRef.current = true;
+      const response = await optimizationAPI.getQueueStatus();
+      setQueueStatus(response.data);
+    } catch (error) {
+      console.error('加载队列状态失败:', error);
+    } finally {
+      queueRequestRef.current = false;
+    }
+  }, []);
+
+  const updateSessionProgress = useCallback(async (sessionId) => {
+    if (progressRequestRef.current) {
+      return;
+    }
+
+    try {
+      progressRequestRef.current = true;
+      const response = await optimizationAPI.getSessionProgress(sessionId);
+      const progress = response.data;
+
+      // 更新会话列表中的进度 - 只在数据有变化时更新
+      setSessions(prev => {
+        const target = prev.find(s => s.session_id === sessionId);
+        if (target && target.progress === progress.progress && target.status === progress.status) {
+          return prev; // 无变化，不触发重渲染
+        }
+        return prev.map(s =>
+          s.session_id === sessionId ? { ...s, ...progress } : s
+        );
+      });
+
+      // 如果会话完成,刷新列表
+      if (progress.status === 'completed' || progress.status === 'failed' || progress.status === 'stopped') {
+        setActiveSession(null);
+        loadSessions();
+
+        if (progress.status === 'completed') {
+          toast.success('优化完成!');
+        } else if (progress.status === 'failed') {
+          toast.error(`优化失败: ${progress.error_message}`);
+        }
+      }
+    } catch (error) {
+      console.error('更新进度失败:', error);
+    } finally {
+      progressRequestRef.current = false;
+    }
+  }, [loadSessions]);
+
+  // 初始加载 - 只在组件挂载时执行一次
+  useEffect(() => {
+    loadSessions();
+    loadQueueStatus();
+  }, [loadSessions, loadQueueStatus]);
+
+  // 队列状态轮询 - 独立的 useEffect，避免与初始加载混淆
+  useEffect(() => {
+    const interval = setInterval(loadQueueStatus, 15000);
+    return () => clearInterval(interval);
+  }, [loadQueueStatus]);
+
+  useEffect(() => {
+    // 如果有活跃会话,每4秒更新进度（进一步降低频率）
+    if (activeSession) {
+      const interval = setInterval(() => {
+        updateSessionProgress(activeSession);
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [activeSession, updateSessionProgress]);
+
+  const validateFile = useCallback((file) => {
+    const ext = file.name.toLowerCase().split('.').pop();
+    if (!['docx', 'pdf', 'md', 'markdown'].includes(ext)) {
+      toast.error('仅支持 Word、PDF 和 Markdown 文档');
+      return false;
+    }
+    return true;
+  }, []);
+
+  const handleFileSelect = useCallback((file) => {
+    if (!file || !validateFile(file)) {
+      return;
+    }
+    setSelectedFile(file);
+  }, [validateFile]);
+
+  const handleStartOptimization = useCallback(async () => {
+    if (inputMode === 'text' && !text.trim()) {
+      toast.error('请输入要优化的文本');
+      return;
+    }
+
+    if (inputMode === 'file' && !selectedFile) {
+      toast.error('请选择要优化的文档');
+      return;
+    }
+
+    if (isSubmitting) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const response = inputMode === 'file'
+        ? await optimizationAPI.startOptimizationFile(selectedFile, { processing_mode: processingMode })
+        : await optimizationAPI.startOptimization({
+            original_text: text,
+            processing_mode: processingMode,
+          });
+
+      setActiveSession(response.data.session_id);
+      toast.success('优化任务已启动');
+      setText('');
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      loadSessions();
+    } catch (error) {
+      toast.error('启动优化失败: ' + (error.response?.data?.detail || '未知错误'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [inputMode, text, selectedFile, processingMode, isSubmitting, loadSessions]);
+
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('cardKey');
+    navigate('/');
+  }, [navigate]);
+
+  const handleDeleteSession = useCallback(async (session) => {
+    const confirmDelete = window.confirm('确认删除该会话及其结果吗?');
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      await optimizationAPI.deleteSession(session.session_id);
+      if (activeSession === session.session_id) {
+        setActiveSession(null);
+      }
+      toast.success('会话已删除');
+      await loadSessions();
+    } catch (error) {
+      console.error('删除会话失败:', error);
+      toast.error(error.response?.data?.detail || '删除会话失败');
+    }
+  }, [activeSession, loadSessions]);
+
+  const handleViewSession = useCallback((sessionId) => {
+    navigate(`/session/${sessionId}`);
+  }, [navigate]);
+
+  const handleRetrySegment = useCallback(async (session) => {
+    if (session.status !== 'failed') {
+      return;
+    }
+
+    const confirmRetry = window.confirm('检测到会话执行失败。是否继续处理未完成的段落?');
+    if (!confirmRetry) {
+      return;
+    }
+
+    try {
+      const response = await optimizationAPI.retryFailedSegments(session.session_id);
+      setActiveSession(session.session_id);
+      toast.success(response.data?.message || '已重新继续处理未完成段落');
+      await loadSessions();
+    } catch (error) {
+      console.error('重试失败:', error);
+      toast.error(error.response?.data?.detail || '重试失败，请稍后再试');
+    }
+  }, [loadSessions]);
+
+  // 使用 useMemo 缓存当前活跃会话的数据
+  const currentActiveSessionData = useMemo(() => {
+    return sessions.find(s => s.session_id === activeSession);
+  }, [sessions, activeSession]);
+
+
+  return (
+    <div className="min-h-screen bg-ios-background">
+      {/* 顶部导航栏 - iOS Glass Style */}
+      <nav className="bg-white/80 backdrop-blur-xl border-b border-ios-separator sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-[52px]">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-ios-blue rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-[17px] font-semibold text-black tracking-tight">
+                AI 论文润色增强
+              </h1>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* 队列状态 */}
+              {queueStatus && (
+                <div className="flex items-center gap-3 text-[13px]">
+                  <div className="flex items-center gap-1.5 bg-gray-100 px-2 py-1 rounded-md">
+                    <Users className="w-3.5 h-3.5 text-ios-gray" />
+                    <span className="text-ios-gray font-medium">
+                      {queueStatus.current_users}/{queueStatus.max_users}
+                    </span>
+                  </div>
+                  {queueStatus.queue_length > 0 && (
+                    <div className="flex items-center gap-1.5 bg-orange-50 px-2 py-1 rounded-md">
+                      <Clock className="w-3.5 h-3.5 text-ios-orange" />
+                      <span className="text-ios-orange font-medium">
+                        {queueStatus.queue_length} 排队
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <button
+                onClick={handleLogout}
+                className="text-ios-red text-[17px] hover:opacity-70 transition-opacity font-normal"
+              >
+                退出
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 左侧 - 输入区域 */}
+          <div className="lg:col-span-2 space-y-6">
+            
+            {/* 说明卡片 */}
+            <div className="bg-white rounded-2xl shadow-ios overflow-hidden">
+              <div className="p-4 flex items-start gap-3 bg-blue-50/50">
+                <Info className="w-5 h-5 text-ios-blue flex-shrink-0 mt-0.5" />
+                <div className="text-[15px] text-black">
+                  <p className="font-semibold mb-1 text-ios-blue">当前模式说明</p>
+                  <p className="text-gray-700 leading-relaxed">
+                    {processingMode === 'paper_polish' && '仅进行论文润色，提升文本的学术性和表达质量。'}
+                    {processingMode === 'paper_enhance' && '直接进行原创性增强，跳过润色阶段，适合已经润色过的文本。'}
+                    {processingMode === 'paper_polish_enhance' && '先进行论文润色，然后自动进行原创性增强，两阶段处理。'}
+                    {processingMode === 'emotion_polish' && '专为感情文章设计，生成更自然、更具人性化的表达。'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-ios p-5">
+              <div className="h-[40px] flex items-center mb-2">
+                <h2 className="text-[20px] font-bold text-black tracking-tight pl-1">
+                  新建任务
+                </h2>
+              </div>
+              
+              {/* 处理模式选择 - iOS Segmented Control Style */}
+              <div className="mb-5">
+                <label className="block text-[13px] font-medium text-ios-gray mb-2 ml-1 uppercase tracking-wide">
+                  选择模式
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { id: 'paper_polish', title: '论文润色', desc: '提升学术表达质量' },
+                    { id: 'paper_enhance', title: '论文增强', desc: '直接提升原创性' },
+                    { id: 'paper_polish_enhance', title: '润色 + 增强', desc: '两阶段完整处理' },
+                    { id: 'emotion_polish', title: '感情文章润色', desc: '自然、人性化表达' }
+                  ].map((mode) => (
+                    <label
+                      key={mode.id}
+                      className={`flex items-center p-3.5 rounded-xl cursor-pointer transition-all border ${
+                        processingMode === mode.id
+                          ? 'bg-blue-50 border-ios-blue ring-1 ring-ios-blue/20'
+                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="processingMode"
+                        value={mode.id}
+                        checked={processingMode === mode.id}
+                        onChange={(e) => setProcessingMode(e.target.value)}
+                        className="mr-3 w-5 h-5 text-ios-blue focus:ring-ios-blue border-gray-300"
+                      />
+                      <div>
+                        <div className={`font-semibold text-[15px] ${processingMode === mode.id ? 'text-ios-blue' : 'text-black'}`}>
+                          {mode.title}
+                        </div>
+                        <div className="text-[13px] text-ios-gray mt-0.5">
+                          {mode.desc}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mb-4 bg-gray-100 p-1 rounded-xl inline-flex">
+                <button
+                  onClick={() => setInputMode('text')}
+                  className={`px-4 py-2 rounded-lg text-[14px] font-medium transition-all ${inputMode === 'text' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
+                >
+                  粘贴文本
+                </button>
+                <button
+                  onClick={() => setInputMode('file')}
+                  className={`px-4 py-2 rounded-lg text-[14px] font-medium transition-all ${inputMode === 'file' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
+                >
+                  上传文档
+                </button>
+              </div>
+
+              {inputMode === 'text' ? (
+                <div className="relative">
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder="在此粘贴您的内容..."
+                    className="w-full h-64 px-4 py-3 bg-gray-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-ios-blue/20 transition-all text-[16px] leading-relaxed text-black placeholder-gray-400 border-none outline-none resize-none"
+                  />
+                  <div className="absolute bottom-3 right-3 text-[12px] text-ios-gray bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                    {text.length} 字
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleFileSelect(e.dataTransfer.files?.[0]);
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    className="w-full h-64 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 hover:bg-white hover:border-ios-blue transition-all flex flex-col items-center justify-center text-center p-6"
+                  >
+                    <Upload className="w-10 h-10 text-ios-blue mb-3" />
+                    <div className="text-[16px] font-semibold text-black mb-1">
+                      点击选择或拖拽上传文档
+                    </div>
+                    <div className="text-[13px] text-ios-gray">
+                      支持 .docx、.pdf、.md、.markdown
+                    </div>
+                    <div className="text-[12px] text-ios-gray mt-2 max-w-md">
+                      Word 文档仅修改摘要、正文、致谢中的正文段落，标题、图片、表格、目录和参考文献保持不变。
+                    </div>
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".docx,.pdf,.md,.markdown"
+                    onChange={(e) => handleFileSelect(e.target.files?.[0])}
+                    className="hidden"
+                  />
+                  {selectedFile && (
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+                      <div>
+                        <div className="text-[14px] font-semibold text-black">{selectedFile.name}</div>
+                        <div className="text-[12px] text-ios-gray">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="p-1.5 text-ios-gray hover:text-ios-red rounded-lg hover:bg-white"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  onClick={handleStartOptimization}
+                  disabled={(inputMode === 'text' ? !text.trim() : !selectedFile) || activeSession || isSubmitting}
+                  className="flex items-center gap-2 bg-ios-blue hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-8 rounded-xl transition-all active:scale-[0.98] shadow-sm text-[17px]"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      提交中...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-5 h-5 fill-current" />
+                      开始优化
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* 活跃会话进度 */}
+            {activeSession && currentActiveSessionData && (
+              <div className="bg-white rounded-2xl shadow-ios p-5 border border-blue-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[17px] font-bold text-black flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-ios-blue animate-pulse" />
+                    正在处理
+                  </h2>
+                  <span className="text-[13px] font-medium px-2 py-1 bg-blue-50 text-ios-blue rounded-md">
+                    进行中
+                  </span>
+                </div>
+
+                {(() => {
+                  const session = currentActiveSessionData;
+                  const getStageName = (stage) => {
+                    if (stage === 'polish') return '论文润色';
+                    if (stage === 'emotion_polish') return '感情文章润色';
+                    if (stage === 'enhance') return '原创性增强';
+                    return stage;
+                  };
+                  return (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between text-[13px] mb-2 font-medium">
+                          <span className="text-ios-gray">
+                            当前阶段: <span className="text-black">{getStageName(session.current_stage)}</span>
+                          </span>
+                          <span className="text-ios-blue">
+                            {session.progress.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div
+                            className="bg-ios-blue h-2 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,122,255,0.3)]"
+                            style={{ width: `${session.progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-ios-gray">
+                          进度: <span className="font-medium text-black">{session.current_position + 1}</span> / {session.total_segments} 段
+                        </span>
+
+                        {session.status === 'queued' && queueStatus?.your_position && (
+                          <div className="flex items-center gap-1.5 text-ios-orange">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>
+                              排队第 {queueStatus.your_position} 位
+                              (~{Math.ceil(queueStatus.estimated_wait_time / 60)}分)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* 右侧 - 历史会话 */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-140px)] sticky top-24">
+              <div className="p-5 border-b border-gray-100 bg-white/50 backdrop-blur-sm z-10 h-[72px] flex items-center">
+                <div className="flex items-center gap-2">
+                  <History className="w-5 h-5 text-ios-gray" />
+                  <h2 className="text-[20px] font-bold text-black tracking-tight">
+                    历史记录
+                  </h2>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar h-full">
+                {isLoadingSessions ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="w-6 h-6 border-2 border-ios-gray/30 border-t-ios-gray rounded-full animate-spin" />
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-12 space-y-2">
+                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
+                      <History className="w-6 h-6" />
+                    </div>
+                    <p className="text-ios-gray text-sm">
+                      暂无会话记录
+                    </p>
+                  </div>
+                ) : (
+                  sessions.map((session) => (
+                    <SessionItem
+                      key={session.id}
+                      session={session}
+                      activeSession={activeSession}
+                      onView={handleViewSession}
+                      onDelete={handleDeleteSession}
+                      onRetry={handleRetrySegment}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WorkspacePage;
