@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    USER_TOKEN_EXPIRE_HOURS: int = 24
     
     # 管理员账户
     ADMIN_USERNAME: str = "admin"

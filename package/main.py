@@ -62,7 +62,7 @@ import uvicorn
 # 导入后端应用组件
 from app.config import settings
 from app.database import init_db
-from app.routes import admin, prompts, optimization
+from app.routes import admin, auth, prompts, optimization
 from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
 from app.models.models import CustomPrompt
@@ -122,6 +122,7 @@ async def add_no_cache_headers(request: Request, call_next):
 
 # 注册 API 路由（添加 /api 前缀，与 backend/app/main.py 保持一致）
 app.include_router(admin.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
 app.include_router(optimization.router, prefix="/api")
 app.include_router(word_formatter_router, prefix="/api")

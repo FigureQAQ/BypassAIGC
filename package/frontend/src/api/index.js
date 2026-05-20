@@ -37,6 +37,11 @@ export const requestWithFallback = async (method, url, data = undefined, config 
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     const cardKey = localStorage.getItem('cardKey');
     if (cardKey) {
       config.params = {
@@ -58,14 +63,26 @@ api.interceptors.response.use(
   },
   (error) => {
     const url = error.config?.url || '';
-    const isAdminAuthRequest = url.includes('/admin/login') || url.includes('/admin/verify-token');
-    if (error.response?.status === 401 && !isAdminAuthRequest) {
+    const isAuthRequest = url.includes('/auth/login') || url.includes('/admin/login') || url.includes('/admin/verify-token');
+    if (error.response?.status === 401 && !isAuthRequest) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('username');
+      localStorage.removeItem('displayName');
       localStorage.removeItem('cardKey');
       window.location.href = '/';
     }
     return Promise.reject(error);
   }
 );
+
+// Auth API
+export const authAPI = {
+  login: (username, password) =>
+    api.post('/auth/login', { username, password }, {
+      timeout: 15000,
+    }),
+  getMe: () => api.get('/auth/me'),
+};
 
 // Admin API
 export const adminAPI = {

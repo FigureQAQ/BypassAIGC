@@ -18,6 +18,7 @@ from app.models.models import (
     User,
 )
 from app.schemas import (
+    AdminUserCreate,
     CardKeyGenerate,
     CardKeyResponse,
     DatabaseUpdateRequest,
@@ -30,6 +31,7 @@ from app.utils.auth import (
     create_access_token,
     generate_access_link,
     generate_card_key,
+    hash_password,
     verify_token,
 )
 
@@ -194,6 +196,55 @@ async def get_all_users(_: str = Depends(get_admin_from_token), db: Session = De
     return db.query(User).order_by(User.created_at.desc()).all()
 
 
+@router.post("/users/create")
+async def create_users(
+    users: List[AdminUserCreate],
+    _: str = Depends(get_admin_from_token),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """批量创建用户名密码用户，兼容上游 2.6.x 账号体系。"""
+    created: List[Dict[str, Any]] = []
+    skipped: List[str] = []
+
+    for payload in users:
+        username = payload.username.strip()
+        if not username or not payload.password:
+            skipped.append(payload.username)
+            continue
+
+        existing = db.query(User).filter(User.username == username).first()
+        if existing:
+            skipped.append(username)
+            continue
+
+        card_key = generate_card_key()
+        while db.query(User).filter(User.card_key == card_key).first():
+            card_key = generate_card_key()
+
+        user = User(
+            username=username,
+            password_hash=hash_password(payload.password),
+            display_name=payload.display_name,
+            card_key=card_key,
+            access_link=generate_access_link(card_key),
+            is_active=True,
+            usage_limit=settings.DEFAULT_USAGE_LIMIT,
+            usage_count=0,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        created.append({
+            "id": user.id,
+            "username": user.username,
+            "display_name": user.display_name,
+            "card_key": user.card_key,
+            "created_at": user.created_at,
+        })
+
+    return {"created": created, "skipped": skipped, "total_created": len(created)}
+
+
 @router.patch("/users/{user_id}/toggle")
 async def toggle_user_status(
     user_id: int,
@@ -209,6 +260,8 @@ async def toggle_user_status(
     db.refresh(user)
     return {
         "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
         "card_key": user.card_key,
         "is_active": user.is_active,
         "message": f"用户已{'启用' if user.is_active else '禁用'}",
@@ -408,6 +461,8 @@ async def get_user_details(
     return {
         "user": {
             "id": user.id,
+            "username": user.username,
+            "display_name": user.display_name,
             "card_key": user.card_key,
             "is_active": user.is_active,
             "created_at": user.created_at,
@@ -539,6 +594,8 @@ async def get_all_sessions(
         result.append({
             "session_id": session.id,
             "user_id": session.user_id,
+            "username": session.user.username if session.user else None,
+            "display_name": session.user.display_name if session.user else None,
             "card_key": session.user.card_key if session.user else None,
             "status": session.status,
             "processing_mode": session.processing_mode,
@@ -614,6 +671,8 @@ async def get_active_sessions(
             "id": session.id,
             "session_id": session.session_id,
             "user_id": session.user_id,
+            "username": session.user.username if session.user else None,
+            "display_name": session.user.display_name if session.user else None,
             "card_key": session.user.card_key if session.user else "未知",
             "status": session.status,
             "progress": session.progress,

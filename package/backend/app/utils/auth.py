@@ -3,11 +3,8 @@ import string
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
+import bcrypt
 from app.config import settings
-
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def generate_card_key(length: int = 16, prefix: str = "") -> str:
@@ -31,12 +28,19 @@ def generate_session_id() -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    except (TypeError, ValueError):
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """哈希密码"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def hash_password(password: str) -> str:
+    return get_password_hash(password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -57,4 +61,22 @@ def verify_token(token: str) -> Optional[dict]:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
     except JWTError:
+        return None
+
+
+def create_user_token(user_id: int, username: str) -> str:
+    expires = timedelta(hours=getattr(settings, "USER_TOKEN_EXPIRE_HOURS", 24))
+    return create_access_token(
+        data={"sub": str(user_id), "username": username, "role": "user"},
+        expires_delta=expires,
+    )
+
+
+def get_user_from_token(token: str) -> Optional[int]:
+    payload = verify_token(token)
+    if not payload or payload.get("role") != "user":
+        return None
+    try:
+        return int(payload["sub"])
+    except (KeyError, TypeError, ValueError):
         return None
