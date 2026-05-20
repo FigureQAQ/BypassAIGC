@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   // 加载 .env 文件中的所有变量（第三个参数 '' 表示不限制 VITE_ 前缀）
   const env = loadEnv(mode, process.cwd(), '')
 
-  const devHost = env.VITE_DEV_HOST || '0.0.0.0'
+  const devHost = env.VITE_DEV_HOST || '127.0.0.1'
   const devPort = parseInt(env.VITE_DEV_PORT) || 5174
   const apiTarget = env.VITE_API_TARGET || 'http://localhost:9800'
 

@@ -73,6 +73,30 @@ function Wait-Url {
     return $false
 }
 
+function Wait-FrontendUrl {
+    param(
+        [int]$StartPort = 5174,
+        [int]$PortCount = 10,
+        [int]$TimeoutSeconds = 60
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        for ($port = $StartPort; $port -lt ($StartPort + $PortCount); $port++) {
+            $url = "http://localhost:$port"
+            try {
+                $response = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 3
+                if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                    return $url
+                }
+            } catch {}
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    return $null
+}
+
 Write-Host "=== AI Writing Assistant Startup ==="
 Write-Host "Package directory: $PackageDir"
 
@@ -115,16 +139,18 @@ $frontendCommand = New-Utf8PowerShellCommand @(
 Start-Process -FilePath "powershell.exe" -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $frontendCommand) -WorkingDirectory $FrontendDir -WindowStyle Normal
 Write-Host "Starting frontend at http://localhost:5174 ..."
 
-if (-not (Wait-Url -Url "http://localhost:5174" -TimeoutSeconds 40)) {
+$FrontendUrl = Wait-FrontendUrl -StartPort 5174 -PortCount 10 -TimeoutSeconds 60
+if (-not $FrontendUrl) {
     Write-Warning "Frontend check timed out. Check the frontend window."
 } else {
-    Write-Host "Frontend started."
-    Start-Process "http://localhost:5174"
+    Write-Host "Frontend started at $FrontendUrl"
+    Start-Process $FrontendUrl
 }
 
 Write-Host ""
-Write-Host "User UI: http://localhost:5174"
-Write-Host "Admin UI: http://localhost:5174/admin"
+$DisplayFrontendUrl = if ($FrontendUrl) { $FrontendUrl } else { "http://localhost:5174" }
+Write-Host "User UI: $DisplayFrontendUrl"
+Write-Host "Admin UI: $DisplayFrontendUrl/admin"
 Write-Host "API docs: http://localhost:9800/docs"
 Write-Host ""
 Write-Host "To stop the app, close the backend and frontend command windows."
