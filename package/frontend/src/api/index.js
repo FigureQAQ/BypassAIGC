@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+axios.defaults.timeout = 15000;
+
 // API 基础路径配置
 // 开发环境和生产环境都使用 /api 前缀
 // 后端路由在 main.py 中以 /api 为前缀注册

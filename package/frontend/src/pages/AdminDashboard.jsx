@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import {
   LogIn,
@@ -71,6 +70,25 @@ const AdminDashboard = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
 
+  const getAdminToken = (tokenOverride = null) =>
+    tokenOverride || adminToken || localStorage.getItem('adminToken');
+
+  const adminRequest = (method, url, data = undefined, tokenOverride = null, config = {}) => {
+    const token = getAdminToken(tokenOverride);
+    if (!token) {
+      return Promise.reject(new Error('Admin token is missing'));
+    }
+
+    return requestWithFallback(method, url, data, {
+      timeout: 15000,
+      ...config,
+      headers: {
+        ...(config.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  };
+
   useEffect(() => {
     if (adminToken) {
       verifyToken();
@@ -87,12 +105,14 @@ const AdminDashboard = () => {
   }, [isAuthenticated]);
 
   const verifyToken = async () => {
+    const token = getAdminToken();
     try {
       await requestWithFallback('post', '/admin/verify-token', {}, {
-        headers: { Authorization: `Bearer ${adminToken}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
       });
       setIsAuthenticated(true);
-      fetchUsers();
+      fetchUsers(token);
     } catch (error) {
       localStorage.removeItem('adminToken');
       setAdminToken(null);
@@ -119,7 +139,8 @@ const AdminDashboard = () => {
       setAdminToken(access_token);
       setIsAuthenticated(true);
       toast.success('登录成功！');
-      fetchUsers();
+      fetchUsers(access_token);
+      fetchStatistics(access_token);
     } catch (error) {
       const message = error.code === 'ECONNABORTED'
         ? '登录超时，请确认后端服务已启动'
@@ -139,12 +160,10 @@ const AdminDashboard = () => {
     toast.success('已退出登录');
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (tokenOverride = null) => {
     setLoadingUsers(true);
     try {
-      const response = await axios.get('/api/admin/users', {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      const response = await adminRequest('get', '/admin/users', undefined, tokenOverride);
       setUsers(response.data);
     } catch (error) {
       toast.error('获取用户列表失败');
@@ -154,12 +173,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = async (tokenOverride = null) => {
     setLoadingStats(true);
     try {
-      const response = await axios.get('/api/admin/statistics', {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      const response = await adminRequest('get', '/admin/statistics', undefined, tokenOverride);
       setStatistics(response.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -176,10 +193,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await axios.post('/api/admin/card-keys', 
-        { card_key: newCardKey },
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+      const response = await adminRequest('post', '/admin/card-keys', { card_key: newCardKey });
       
       setGeneratedKey(response.data.card_key);
       setNewCardKey('');
@@ -192,10 +206,7 @@ const AdminDashboard = () => {
 
   const handleToggleUserStatus = async (userId, currentStatus) => {
     try {
-      await axios.patch(`/api/admin/users/${userId}/toggle`, 
-        {},
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+      await adminRequest('patch', `/admin/users/${userId}/toggle`, {});
       toast.success(currentStatus ? '用户已禁用' : '用户已启用');
       fetchUsers();
     } catch (error) {
@@ -209,9 +220,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      await axios.delete(`/api/admin/users/${userId}`, {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      await adminRequest('delete', `/admin/users/${userId}`);
       toast.success('用户已删除');
       fetchUsers();
     } catch (error) {
@@ -231,17 +240,13 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await axios.post('/api/admin/batch-generate-keys',
-        null,
-        {
-          params: { 
-            count: batchCount, 
-            prefix: batchPrefix,
-            usage_limit: batchUsageLimit
-          },
-          headers: { Authorization: `Bearer ${adminToken}` }
-        }
-      );
+      const response = await adminRequest('post', '/admin/batch-generate-keys', null, null, {
+        params: {
+          count: batchCount,
+          prefix: batchPrefix,
+          usage_limit: batchUsageLimit,
+        },
+      });
       
       toast.success(`成功生成 ${response.data.count} 个卡密`);
       setShowBatchModal(false);
@@ -257,11 +262,9 @@ const AdminDashboard = () => {
 
   const handleUpdateUsageLimit = async (userId, newLimit) => {
     try {
-      await axios.patch(
-        `/api/admin/users/${userId}/usage`,
-        { usage_limit: parseInt(newLimit) },
-        { headers: { Authorization: `Bearer ${adminToken}` } }
-      );
+      await adminRequest('patch', `/admin/users/${userId}/usage`, {
+        usage_limit: parseInt(newLimit),
+      });
       toast.success('使用次数已更新');
       setEditingUserId(null);
       setNewUsageLimit('');
@@ -273,9 +276,7 @@ const AdminDashboard = () => {
 
   const handleViewUserDetails = async (userId) => {
     try {
-      const response = await axios.get(`/api/admin/users/${userId}/details`, {
-        headers: { Authorization: `Bearer ${adminToken}` }
-      });
+      const response = await adminRequest('get', `/admin/users/${userId}/details`);
       setUserDetails(response.data);
       setSelectedUser(userId);
       setShowUserDetails(true);
