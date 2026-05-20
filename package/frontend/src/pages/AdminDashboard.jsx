@@ -29,6 +29,7 @@ import {
 import ConfigManager from '../components/ConfigManager';
 import SessionMonitor from '../components/SessionMonitor';
 import DatabaseManager from '../components/DatabaseManager';
+import { requestWithFallback } from '../api';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ const AdminDashboard = () => {
 
   const verifyToken = async () => {
     try {
-      await axios.post('/api/admin/verify-token', {}, {
+      await requestWithFallback('post', '/admin/verify-token', {}, {
         headers: { Authorization: `Bearer ${adminToken}` }
       });
       setIsAuthenticated(true);
@@ -101,10 +102,14 @@ const AdminDashboard = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) {
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/admin/login', {
+      const response = await requestWithFallback('post', '/admin/login', {
         username,
         password
       });
@@ -116,7 +121,10 @@ const AdminDashboard = () => {
       toast.success('登录成功！');
       fetchUsers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || '登录失败，请检查用户名和密码');
+      const message = error.code === 'ECONNABORTED'
+        ? '登录超时，请确认后端服务已启动'
+        : (error.response?.data?.detail || '登录失败，请检查用户名和密码');
+      toast.error(message);
     } finally {
       setLoading(false);
     }

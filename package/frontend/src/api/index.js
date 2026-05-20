@@ -12,6 +12,26 @@ const api = axios.create({
   timeout: 30000, // 默认30秒超时，各端点可单独覆盖
 });
 
+const fallbackApi = axios.create({
+  baseURL: 'http://localhost:9800/api',
+  timeout: 15000,
+});
+
+const shouldUseFallback = (error) => {
+  return !error.response || error.code === 'ECONNABORTED';
+};
+
+export const requestWithFallback = async (method, url, data = undefined, config = {}) => {
+  try {
+    return await api.request({ method, url, data, timeout: 15000, ...config });
+  } catch (error) {
+    if (shouldUseFallback(error)) {
+      return fallbackApi.request({ method, url, data, ...config });
+    }
+    throw error;
+  }
+};
+
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
@@ -35,7 +55,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url || '';
+    const isAdminAuthRequest = url.includes('/admin/login') || url.includes('/admin/verify-token');
+    if (error.response?.status === 401 && !isAdminAuthRequest) {
       localStorage.removeItem('cardKey');
       window.location.href = '/';
     }

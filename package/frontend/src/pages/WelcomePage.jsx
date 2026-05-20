@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Shield, ArrowRight, AlertCircle } from 'lucide-react';
-import axios from 'axios';
-import { healthAPI } from '../api';
+import { healthAPI, requestWithFallback } from '../api';
 
 const WelcomePage = () => {
   const [cardKey, setCardKey] = useState('');
@@ -42,6 +41,10 @@ const WelcomePage = () => {
   }, []);
 
   const handleContinue = async () => {
+    if (loading) {
+      return;
+    }
+
     if (!cardKey.trim()) {
       toast.error('请输入卡密');
       return;
@@ -64,15 +67,20 @@ const WelcomePage = () => {
     // 验证卡密
     setLoading(true);
     try {
-      const response = await axios.post('/api/admin/verify-card-key', {
+      const response = await requestWithFallback('post', '/admin/verify-card-key', {
         card_key: cardKey
       });
       
       if (response.data.valid) {
         setShowWarning(true);
+      } else {
+        toast.error('卡密验证失败，请检查卡密是否正确');
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || '卡密验证失败，请检查卡密是否正确');
+      const message = error.code === 'ECONNABORTED'
+        ? '验证超时，请确认后端服务已启动'
+        : (error.response?.data?.detail || '卡密验证失败，请检查卡密是否正确');
+      toast.error(message);
     } finally {
       setLoading(false);
     }
