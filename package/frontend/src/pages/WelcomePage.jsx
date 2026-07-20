@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowRight, KeyRound, Shield } from 'lucide-react';
+import {
+  ArrowRight, CheckCircle, FileText, KeyRound, LayoutTemplate, Shield, Sparkles,
+} from 'lucide-react';
 import { authAPI, healthAPI, requestWithFallback } from '../api';
 
 const WelcomePage = () => {
@@ -89,25 +91,58 @@ const WelcomePage = () => {
     : cardKey.trim();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex flex-col items-center justify-center p-4 sm:p-6 relative">
+    <div className="min-h-screen bg-app-shell flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      <div className="absolute top-[-14rem] left-[-10rem] w-[34rem] h-[34rem] rounded-full bg-blue-300/20 blur-3xl pointer-events-none" />
+      <div className="absolute bottom-[-18rem] right-[-12rem] w-[38rem] h-[38rem] rounded-full bg-violet-300/20 blur-3xl pointer-events-none" />
       <button
         onClick={() => navigate('/admin')}
-        className="fixed top-6 left-6 px-4 py-2.5 bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg hover:bg-white/80 text-gray-800 rounded-2xl transition-all active:scale-95 flex items-center gap-2 text-sm font-medium z-10"
+        className="fixed top-6 left-6 px-4 py-2.5 surface-card-soft hover:bg-white/90 text-slate-700 rounded-2xl transition-all active:scale-95 flex items-center gap-2 text-sm font-medium z-10"
       >
         <Shield className="w-4 h-4 text-blue-600" />
         管理后台
       </button>
 
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-8 space-y-8 animate-fade-in-up">
+      <div className="max-w-6xl w-full grid lg:grid-cols-[1.15fr_0.85fr] items-stretch gap-5 relative z-[1]">
+        <section className="hidden lg:flex rounded-[32px] bg-slate-950 text-white p-10 flex-col justify-between relative overflow-hidden shadow-2xl shadow-slate-900/20 animate-fade-in-up">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(59,130,246,0.5),transparent_28rem),radial-gradient(circle_at_90%_90%,rgba(124,58,237,0.38),transparent_24rem)]" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs text-blue-100">
+              <Sparkles className="w-3.5 h-3.5" />
+              AI 学术生产力套件
+            </div>
+            <h1 className="text-5xl font-bold tracking-tight leading-[1.12] mt-7">
+              让写作、排版与检查
+              <span className="block text-blue-300 mt-2">汇聚在一个工作台。</span>
+            </h1>
+            <p className="text-slate-300 text-base leading-relaxed mt-5 max-w-xl">
+              支持文本与多种文档格式，在保留结构的同时完成语言优化、规范排版和质量检查。
+            </p>
+          </div>
+
+          <div className="relative grid grid-cols-3 gap-3 mt-12">
+            {[
+              { icon: FileText, title: '多格式输入', text: 'Word / PDF / Markdown' },
+              { icon: LayoutTemplate, title: '保留结构', text: '标题、表格与公式' },
+              { icon: CheckCircle, title: '完整工作流', text: '优化、检查与导出' },
+            ].map(({ icon: Icon, title, text }) => (
+              <div key={title} className="rounded-2xl bg-white/[0.08] border border-white/10 p-4">
+                <Icon className="w-5 h-5 text-blue-300 mb-4" />
+                <div className="font-semibold text-sm">{title}</div>
+                <div className="text-[11px] text-slate-400 mt-1">{text}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="surface-card rounded-[32px] p-7 sm:p-9 space-y-7 animate-fade-in-up">
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-ios-blue rounded-[22px] shadow-lg mb-2">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-violet-600 rounded-[20px] shadow-xl shadow-blue-500/20 mb-1">
               <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-black tracking-tight">
+              <h1 className="text-2xl font-bold text-gradient tracking-tight">
                 AI 学术写作助手
               </h1>
               <p className="text-ios-gray text-sm mt-1">
@@ -180,7 +215,7 @@ const WelcomePage = () => {
           <button
             onClick={isAccountMode ? handleAccountLogin : handleCardLogin}
             disabled={loading || !canSubmit}
-            className="w-full bg-ios-blue hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 text-[17px] shadow-lg hover:shadow-xl"
+            className="w-full bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-[17px] shadow-lg shadow-blue-500/20 hover:shadow-xl"
           >
             {loading ? (
               <>

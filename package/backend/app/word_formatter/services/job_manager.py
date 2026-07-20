@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
@@ -93,6 +94,7 @@ class JobManager:
     ):
         self._jobs: Dict[str, Job] = {}
         self._job_locks: Dict[str, asyncio.Lock] = {}
+        self._running_tasks: Dict[str, asyncio.Task] = {}
         self._semaphore = asyncio.Semaphore(max_concurrent_jobs)
         self._job_retention = timedelta(hours=job_retention_hours)
         self._cleanup_task: Optional[asyncio.Task] = None
@@ -165,38 +167,54 @@ class JobManager:
         if not job:
             raise ValueError(f"Job not found: {job_id}")
 
+        current_task = asyncio.current_task()
+        if current_task:
+            self._running_tasks[job_id] = current_task
+
         print(f"\n[WORD-FORMATTER] ========== 开始执行任务 ==========", flush=True)
         print(f"[WORD-FORMATTER] Job ID: {job_id[:8]}... 类型: {job.job_type.value}", flush=True)
 
-        async with self._semaphore:
-            async with self._job_locks[job_id]:
-                job.status = JobStatus.RUNNING
-                job.updated_at = datetime.now()
+        try:
+            async with self._semaphore:
+                async with self._job_locks[job_id]:
+                    if job.status == JobStatus.CANCELLED:
+                        return job
 
-                try:
-                    if job.job_type == JobType.FORMAT:
-                        await self._run_format_job(job)
-                    elif job.job_type == JobType.PREPROCESS:
-                        await self._run_preprocess_job(job, ai_service)
-                    else:
-                        raise ValueError(f"Unknown job type: {job.job_type}")
+                    job.status = JobStatus.RUNNING
+                    job.updated_at = datetime.now()
 
-                except Exception as e:
-                    import traceback
-                    job.status = JobStatus.FAILED
-                    job.error = str(e)
-                    print(f"[WORD-FORMATTER] ❌ 任务异常 job_id={job_id[:8]}...", flush=True)
-                    print(f"[WORD-FORMATTER] 异常类型: {type(e).__name__}", flush=True)
-                    print(f"[WORD-FORMATTER] 异常信息: {e}", flush=True)
-                    print(f"[WORD-FORMATTER] 堆栈跟踪:\n{traceback.format_exc()}", flush=True)
+                    try:
+                        if job.job_type == JobType.FORMAT:
+                            await self._run_format_job(job)
+                        elif job.job_type == JobType.PREPROCESS:
+                            await self._run_preprocess_job(job, ai_service)
+                        else:
+                            raise ValueError(f"Unknown job type: {job.job_type}")
+                    except asyncio.CancelledError:
+                        job.status = JobStatus.CANCELLED
+                        job.error = "任务已取消"
+                        raise
+                    except Exception as e:
+                        import traceback
+                        job.status = JobStatus.FAILED
+                        job.error = str(e)
+                        print(f"[WORD-FORMATTER] [ERROR] 任务异常 job_id={job_id[:8]}...", flush=True)
+                        print(f"[WORD-FORMATTER] 异常类型: {type(e).__name__}", flush=True)
+                        print(f"[WORD-FORMATTER] 异常信息: {e}", flush=True)
+                        print(f"[WORD-FORMATTER] 堆栈跟踪:\n{traceback.format_exc()}", flush=True)
 
-                job.updated_at = datetime.now()
-                print(f"[WORD-FORMATTER] ========== 任务执行结束 ==========\n", flush=True)
-                return job
+                    job.updated_at = datetime.now()
+                    print(f"[WORD-FORMATTER] ========== 任务执行结束 ==========\n", flush=True)
+                    return job
+        finally:
+            if self._running_tasks.get(job_id) is current_task:
+                self._running_tasks.pop(job_id, None)
 
     async def _run_format_job(self, job: Job) -> None:
         """Execute a format job."""
         def progress_callback(p: CompileProgress):
+            if job.status == JobStatus.CANCELLED:
+                return
             progress = JobProgress(
                 phase=p.phase.value,
                 progress=p.progress,
@@ -209,11 +227,15 @@ class JobManager:
 
         options = job.options or CompileOptions()
 
-        result = compile_document(
+        result = await asyncio.to_thread(
+            compile_document,
             job.input_text or "",
             options,
             progress_callback,
         )
+
+        if job.status == JobStatus.CANCELLED:
+            return
 
         job.result = result
 
@@ -221,13 +243,13 @@ class JobManager:
             job.status = JobStatus.COMPLETED
             job.output_bytes = result.docx_bytes
             job.output_filename = self._generate_output_filename(job)
-            print(f"[WORD-FORMATTER] ✅ 格式化任务完成 job_id={job.job_id[:8]}...", flush=True)
+            print(f"[WORD-FORMATTER] [OK] 格式化任务完成 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 输出文件: {job.output_filename}", flush=True)
             print(f"[WORD-FORMATTER] 文件大小: {len(result.docx_bytes or b'')} 字节", flush=True)
         else:
             job.status = JobStatus.FAILED
             job.error = result.error
-            print(f"[WORD-FORMATTER] ❌ 格式化任务失败 job_id={job.job_id[:8]}...", flush=True)
+            print(f"[WORD-FORMATTER] [ERROR] 格式化任务失败 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 错误: {result.error}", flush=True)
 
     async def _run_preprocess_job(self, job: Job, ai_service: Any) -> None:
@@ -236,6 +258,8 @@ class JobManager:
             raise ValueError("AI service is required for preprocess jobs")
 
         def progress_callback(p: PreprocessProgress):
+            if job.status == JobStatus.CANCELLED:
+                return
             progress = JobProgress(
                 phase=p.phase.value,
                 progress=p.processed_paragraphs / max(p.total_paragraphs, 1),
@@ -254,17 +278,20 @@ class JobManager:
             progress_callback,
         )
 
+        if job.status == JobStatus.CANCELLED:
+            return
+
         job.preprocess_result = result
 
         if result.success:
             job.status = JobStatus.COMPLETED
-            print(f"[WORD-FORMATTER] ✅ 预处理任务完成 job_id={job.job_id[:8]}...", flush=True)
+            print(f"[WORD-FORMATTER] [OK] 预处理任务完成 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 段落数: {len(result.paragraphs)}", flush=True)
             print(f"[WORD-FORMATTER] 一致性校验: {'通过' if result.integrity_check_passed else '失败'}", flush=True)
         else:
             job.status = JobStatus.FAILED
             job.error = result.error
-            print(f"[WORD-FORMATTER] ❌ 预处理任务失败 job_id={job.job_id[:8]}...", flush=True)
+            print(f"[WORD-FORMATTER] [ERROR] 预处理任务失败 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 错误: {result.error}", flush=True)
 
     def _generate_output_filename(self, job: Job) -> str:
@@ -282,7 +309,11 @@ class JobManager:
 
         if job.status in {JobStatus.PENDING, JobStatus.RUNNING}:
             job.status = JobStatus.CANCELLED
+            job.error = "任务已取消"
             job.updated_at = datetime.now()
+            task = self._running_tasks.get(job_id)
+            if task and not task.done():
+                task.cancel()
             return True
 
         return False
@@ -389,10 +420,16 @@ class JobManager:
 
     async def start_cleanup_loop(self, interval_hours: int = 1):
         """Start periodic cleanup task."""
+        if self._cleanup_task and not self._cleanup_task.done():
+            return
+
         async def _loop():
-            while True:
-                await asyncio.sleep(interval_hours * 3600)
-                await self.cleanup_old_jobs()
+            try:
+                while True:
+                    await asyncio.sleep(interval_hours * 3600)
+                    await self.cleanup_old_jobs()
+            except asyncio.CancelledError:
+                return
 
         self._cleanup_task = asyncio.create_task(_loop())
 
@@ -408,17 +445,26 @@ class JobManager:
 
         应在 FastAPI shutdown 事件中调用。
         """
-        # 停止清理循环
+        cleanup_task = self._cleanup_task
         self.stop_cleanup_loop()
+        if cleanup_task:
+            with suppress(asyncio.CancelledError):
+                await cleanup_task
 
-        # 取消所有运行中的任务
-        for job_id, job in list(self._jobs.items()):
-            if job.status == JobStatus.RUNNING:
+        running_tasks = list(self._running_tasks.values())
+        for job_id, task in list(self._running_tasks.items()):
+            job = self._jobs.get(job_id)
+            if job and job.status in {JobStatus.PENDING, JobStatus.RUNNING}:
                 job.status = JobStatus.CANCELLED
                 job.error = "服务关闭，任务被取消"
+            task.cancel()
+        if running_tasks:
+            await asyncio.gather(*running_tasks, return_exceptions=True)
 
         # 清空任务字典
+        self._running_tasks.clear()
         self._jobs.clear()
+        self._job_locks.clear()
 
     def get_stats(self) -> Dict[str, int]:
         """Get job statistics."""

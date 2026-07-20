@@ -1,6 +1,7 @@
 import asyncio
-from typing import Optional, Dict, List
-from datetime import datetime
+from time import monotonic
+from typing import Dict, List, Optional
+from datetime import datetime, timezone
 from app.config import settings
 
 # 等待并发权限的最大超时时间（秒）
@@ -38,7 +39,7 @@ class ConcurrencyManager:
                 return True
             
             if self._can_acquire_locked(user_id):
-                self.active_sessions[session_id] = datetime.utcnow()
+                self.active_sessions[session_id] = datetime.now(timezone.utc)
                 self._track_user_locked(session_id, user_id)
                 return True
 
@@ -47,21 +48,26 @@ class ConcurrencyManager:
                 self._queued_session_user[session_id] = user_id
             
             # 等待被唤醒，设置超时防止无限等待
-            start_time = datetime.utcnow()
-            while session_id not in self.active_sessions and session_id in self.queue:
-                try:
+            start_time = monotonic()
+            try:
+                while session_id not in self.active_sessions and session_id in self.queue:
                     # 使用 wait_for 设置超时
-                    remaining_timeout = timeout - (datetime.utcnow() - start_time).total_seconds()
+                    remaining_timeout = timeout - (monotonic() - start_time)
                     if remaining_timeout <= 0:
-                        # 超时，从队列中移除
-                        if session_id in self.queue:
-                            self.queue.remove(session_id)
-                        self._queued_session_user.pop(session_id, None)
+                        self._remove_queued_locked(session_id)
                         return False
-                    await asyncio.wait_for(self._condition.wait(), timeout=min(remaining_timeout, 60))
-                except asyncio.TimeoutError:
-                    # 每60秒检查一次是否超时
-                    continue
+                    try:
+                        await asyncio.wait_for(
+                            self._condition.wait(),
+                            timeout=min(remaining_timeout, 60),
+                        )
+                    except asyncio.TimeoutError:
+                        continue
+            except asyncio.CancelledError:
+                self._remove_queued_locked(session_id)
+                self._activate_waiting_locked()
+                self._condition.notify_all()
+                raise
             
             return session_id in self.active_sessions
     
@@ -77,9 +83,7 @@ class ConcurrencyManager:
                     self.active_per_user[user_id] = count
             if session_id in self.active_sessions:
                 del self.active_sessions[session_id]
-            if session_id in self.queue:
-                self.queue.remove(session_id)
-            self._queued_session_user.pop(session_id, None)
+            self._remove_queued_locked(session_id)
             self._activate_waiting_locked()
             self._condition.notify_all()  # 唤醒所有等待者
     
@@ -141,6 +145,11 @@ class ConcurrencyManager:
         self._session_user[session_id] = user_id
         self.active_per_user[user_id] = self.active_per_user.get(user_id, 0) + 1
 
+    def _remove_queued_locked(self, session_id: str):
+        if session_id in self.queue:
+            self.queue.remove(session_id)
+        self._queued_session_user.pop(session_id, None)
+
     def _activate_waiting_locked(self):
         """尝试为等待队列中的会话分配执行权限 (需持有锁)"""
         for next_session in list(self.queue):
@@ -150,7 +159,7 @@ class ConcurrencyManager:
             if not self._can_acquire_locked(user_id):
                 continue
             self.queue.remove(next_session)
-            self.active_sessions[next_session] = datetime.utcnow()
+            self.active_sessions[next_session] = datetime.now(timezone.utc)
             self._track_user_locked(next_session, user_id)
 
 

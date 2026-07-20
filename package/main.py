@@ -138,6 +138,7 @@ async def startup_event():
     
     # 初始化数据库
     init_db()
+    await get_job_manager().start_cleanup_loop()
     
     # 创建系统默认提示词
     db = SessionLocal()

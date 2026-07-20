@@ -1,14 +1,20 @@
 import asyncio
-from typing import Dict, List, Any
 import json
 from asyncio import Queue
+from typing import Any, Dict, List
+
+from app.config import settings
 
 class StreamManager:
     """流式响应管理器"""
     
-    def __init__(self):
+    def __init__(self, queue_max_size: int = None):
         # session_id -> List[Queue]
         self.connections: Dict[str, List[Queue]] = {}
+        self.queue_max_size = max(
+            1,
+            queue_max_size or settings.STREAM_QUEUE_MAX_SIZE,
+        )
         self._lock = asyncio.Lock()
     
     async def connect(self, session_id: str) -> Queue:
@@ -17,7 +23,7 @@ class StreamManager:
             if session_id not in self.connections:
                 self.connections[session_id] = []
             
-            queue = Queue()
+            queue = Queue(maxsize=self.queue_max_size)
             self.connections[session_id].append(queue)
             return queue
     
@@ -52,24 +58,21 @@ class StreamManager:
         if data.get('type') != 'content':
             print(f"[STREAM BROADCAST] Session: {session_id}, Type: {data.get('type')}, Connections: {len(queues)}", flush=True)
         
-        failed_queues = []
         for queue in queues:
             try:
-                # 使用 put_nowait 避免阻塞
                 queue.put_nowait(message)
             except asyncio.QueueFull:
-                print(f"[STREAM ERROR] Queue full for session {session_id}, dropping message", flush=True)
-                failed_queues.append(queue)
+                # 慢连接只保留最新消息，避免无界队列持续占用内存。
+                try:
+                    queue.get_nowait()
+                    queue.put_nowait(message)
+                except (asyncio.QueueEmpty, asyncio.QueueFull):
+                    print(
+                        f"[STREAM WARNING] Queue remained full for session {session_id}, dropping message",
+                        flush=True,
+                    )
             except Exception as e:
                 print(f"[STREAM ERROR] Failed to push to queue: {e}", flush=True)
-                failed_queues.append(queue)
-        
-        # 清理失败的队列
-        if failed_queues:
-            async with self._lock:
-                for failed_queue in failed_queues:
-                    if session_id in self.connections and failed_queue in self.connections[session_id]:
-                        self.connections[session_id].remove(failed_queue)
 
 # 全局实例
 stream_manager = StreamManager()

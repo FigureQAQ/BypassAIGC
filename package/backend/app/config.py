@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     
     # 流式输出配置
     USE_STREAMING: bool = False  # 默认使用非流式模式，避免被API阻止
+    STREAM_QUEUE_MAX_SIZE: int = 256  # 单个 SSE 连接最多缓存的消息数
 
     # API 请求间隔（秒），用于避免触发 RATE_LIMIT
     API_REQUEST_INTERVAL: int = 6
@@ -140,4 +141,3 @@ def reload_settings():
                             setattr(settings, key, value)
     
     return settings
-

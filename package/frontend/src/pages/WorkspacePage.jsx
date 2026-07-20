@@ -1,11 +1,46 @@
-import React, { useState, useEffect, useCallback, useMemo, memo, useRef } from 'react';
+import React, {
+  useState, useEffect, useCallback, useMemo, memo, useRef, useDeferredValue,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   FileText, History, Play, Upload, X,
-  Users, Clock, AlertCircle, CheckCircle, Trash2, Info
+  Users, Clock, AlertCircle, CheckCircle, Trash2, Info,
+  Search, Square, Sparkles, Wand2, LayoutTemplate, ShieldCheck,
+  ChevronRight, Activity,
 } from 'lucide-react';
 import { optimizationAPI } from '../api';
+
+const TOOL_LINKS = [
+  {
+    title: 'Word 智能排版',
+    description: '快速生成规范论文文档',
+    path: '/word-formatter',
+    icon: LayoutTemplate,
+    color: 'from-blue-500 to-cyan-500',
+  },
+  {
+    title: '格式规范生成',
+    description: '用自然语言创建排版规范',
+    path: '/spec-generator',
+    icon: Wand2,
+    color: 'from-violet-500 to-fuchsia-500',
+  },
+  {
+    title: '文章预处理',
+    description: '分块清洗并保持结构完整',
+    path: '/article-preprocessor',
+    icon: Sparkles,
+    color: 'from-amber-500 to-orange-500',
+  },
+  {
+    title: '格式检查',
+    description: '无需 AI 即可检测格式问题',
+    path: '/format-checker',
+    icon: ShieldCheck,
+    color: 'from-emerald-500 to-teal-500',
+  },
+];
 
 // 会话列表项组件 - 使用 memo 避免不必要重渲染
 const SessionItem = memo(({ session, activeSession, onView, onDelete, onRetry }) => {
@@ -132,11 +167,16 @@ const WorkspacePage = () => {
   const [activeSession, setActiveSession] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [sessionFilter, setSessionFilter] = useState('all');
+  const [isDocumentHidden, setIsDocumentHidden] = useState(document.hidden);
   const fileInputRef = useRef(null);
   const sessionsRequestRef = useRef(false);
   const queueRequestRef = useRef(false);
   const progressRequestRef = useRef(false);
   const navigate = useNavigate();
+  const deferredSessionSearch = useDeferredValue(sessionSearch);
 
   // 使用 useCallback 优化函数引用稳定性
   const loadSessions = useCallback(async () => {
@@ -227,19 +267,33 @@ const WorkspacePage = () => {
 
   // 队列状态轮询 - 独立的 useEffect，避免与初始加载混淆
   useEffect(() => {
-    const interval = setInterval(loadQueueStatus, 15000);
+    const interval = setInterval(loadQueueStatus, isDocumentHidden ? 60000 : 15000);
     return () => clearInterval(interval);
-  }, [loadQueueStatus]);
+  }, [isDocumentHidden, loadQueueStatus]);
 
   useEffect(() => {
-    // 如果有活跃会话,每4秒更新进度（进一步降低频率）
     if (activeSession) {
       const interval = setInterval(() => {
         updateSessionProgress(activeSession);
-      }, 4000);
+      }, isDocumentHidden ? 15000 : 3000);
       return () => clearInterval(interval);
     }
-  }, [activeSession, updateSessionProgress]);
+  }, [activeSession, isDocumentHidden, updateSessionProgress]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsDocumentHidden(document.hidden);
+      if (!document.hidden) {
+        loadQueueStatus();
+        if (activeSession) {
+          updateSessionProgress(activeSession);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [activeSession, loadQueueStatus, updateSessionProgress]);
 
   const validateFile = useCallback((file) => {
     const ext = file.name.toLowerCase().split('.').pop();
@@ -298,8 +352,27 @@ const WorkspacePage = () => {
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('cardKey');
+    localStorage.removeItem('authToken');
     navigate('/');
   }, [navigate]);
+
+  const handleStopSession = useCallback(async () => {
+    if (!activeSession || isStopping) {
+      return;
+    }
+
+    try {
+      setIsStopping(true);
+      await optimizationAPI.stopSession(activeSession);
+      toast.success('任务已停止');
+      setActiveSession(null);
+      await loadSessions();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || '停止任务失败');
+    } finally {
+      setIsStopping(false);
+    }
+  }, [activeSession, isStopping, loadSessions]);
 
   const handleDeleteSession = useCallback(async (session) => {
     const confirmDelete = window.confirm('确认删除该会话及其结果吗?');
@@ -350,20 +423,51 @@ const WorkspacePage = () => {
     return sessions.find(s => s.session_id === activeSession);
   }, [sessions, activeSession]);
 
+  const sessionStats = useMemo(() => ({
+    total: sessions.length,
+    completed: sessions.filter(session => session.status === 'completed').length,
+    running: sessions.filter(
+      session => session.status === 'processing' || session.status === 'queued',
+    ).length,
+  }), [sessions]);
+
+  const filteredSessions = useMemo(() => {
+    const keyword = deferredSessionSearch.trim().toLowerCase();
+    return sessions.filter((session) => {
+      const matchesFilter = sessionFilter === 'all'
+        || (sessionFilter === 'active' && ['processing', 'queued'].includes(session.status))
+        || session.status === sessionFilter;
+      if (!matchesFilter) {
+        return false;
+      }
+      if (!keyword) {
+        return true;
+      }
+      return [
+        session.source_filename,
+        session.preview_text,
+        session.session_id,
+      ].some(value => value?.toLowerCase().includes(keyword));
+    });
+  }, [deferredSessionSearch, sessionFilter, sessions]);
+
 
   return (
-    <div className="min-h-screen bg-ios-background">
+    <div className="min-h-screen bg-app-shell">
       {/* 顶部导航栏 - iOS Glass Style */}
-      <nav className="bg-white/80 backdrop-blur-xl border-b border-ios-separator sticky top-0 z-50">
+      <nav className="bg-white/70 backdrop-blur-2xl border-b border-white/80 sticky top-0 z-50 shadow-[0_1px_20px_rgba(15,23,42,0.04)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-[52px]">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-ios-blue rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
                 <FileText className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-[17px] font-semibold text-black tracking-tight">
-                AI 论文润色增强
-              </h1>
+              <div>
+                <h1 className="text-[16px] font-bold text-slate-900 tracking-tight">
+                  AI 学术工作台
+                </h1>
+                <p className="hidden sm:block text-[11px] text-slate-500">写作、排版与质量检查</p>
+              </div>
             </div>
             
             <div className="flex items-center gap-4">
@@ -398,13 +502,66 @@ const WorkspacePage = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-7">
+        <section className="relative overflow-hidden rounded-[28px] bg-slate-950 text-white p-6 sm:p-8 mb-6 shadow-2xl shadow-slate-900/15">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(59,130,246,0.45),transparent_28rem),radial-gradient(circle_at_85%_0%,rgba(124,58,237,0.4),transparent_24rem)]" />
+          <div className="absolute -right-20 -bottom-32 w-80 h-80 border border-white/10 rounded-full" />
+          <div className="relative grid lg:grid-cols-[1.25fr_1fr] gap-8 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs text-blue-100 mb-4">
+                <Sparkles className="w-3.5 h-3.5" />
+                一站式学术写作与文档处理
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight max-w-2xl">
+                从文本优化到规范排版，
+                <span className="text-blue-300">一次完成。</span>
+              </h2>
+              <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
+                创建新的语言优化任务，或进入专业工具处理 Word 排版、格式检查和文章预处理。
+              </p>
+              <div className="grid grid-cols-3 gap-3 mt-6 max-w-lg">
+                {[
+                  { label: '全部任务', value: sessionStats.total, icon: History },
+                  { label: '已完成', value: sessionStats.completed, icon: CheckCircle },
+                  { label: '进行中', value: sessionStats.running, icon: Activity },
+                ].map(({ label, value, icon: Icon }) => (
+                  <div key={label} className="rounded-2xl bg-white/10 border border-white/10 px-4 py-3">
+                    <Icon className="w-4 h-4 text-blue-300 mb-2" />
+                    <div className="text-2xl font-bold">{value}</div>
+                    <div className="text-[11px] text-slate-300 mt-0.5">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              {TOOL_LINKS.map(({ title, description, path, icon: Icon, color }) => (
+                <button
+                  key={path}
+                  type="button"
+                  onClick={() => navigate(path)}
+                  className="group text-left rounded-2xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/10 p-4 transition-all hover:-translate-y-0.5"
+                >
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg mb-3`}>
+                    <Icon className="w-4.5 h-4.5 text-white" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">{title}</span>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">{description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左侧 - 输入区域 */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* 说明卡片 */}
-            <div className="bg-white rounded-2xl shadow-ios overflow-hidden">
+            <div className="surface-card rounded-2xl overflow-hidden">
               <div className="p-4 flex items-start gap-3 bg-blue-50/50">
                 <Info className="w-5 h-5 text-ios-blue flex-shrink-0 mt-0.5" />
                 <div className="text-[15px] text-black">
@@ -419,7 +576,7 @@ const WorkspacePage = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-ios p-5">
+            <div className="surface-card rounded-2xl p-5">
               <div className="h-[40px] flex items-center mb-2">
                 <h2 className="text-[20px] font-bold text-black tracking-tight pl-1">
                   新建任务
@@ -568,15 +725,30 @@ const WorkspacePage = () => {
 
             {/* 活跃会话进度 */}
             {activeSession && currentActiveSessionData && (
-              <div className="bg-white rounded-2xl shadow-ios p-5 border border-blue-100">
+              <div className="surface-card rounded-2xl p-5 border border-blue-200/70">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[17px] font-bold text-black flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-ios-blue animate-pulse" />
                     正在处理
                   </h2>
-                  <span className="text-[13px] font-medium px-2 py-1 bg-blue-50 text-ios-blue rounded-md">
-                    进行中
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium px-2 py-1 bg-blue-50 text-ios-blue rounded-md">
+                      进行中
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleStopSession}
+                      disabled={isStopping}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50 text-xs font-semibold transition-colors"
+                    >
+                      {isStopping ? (
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-red-200 border-t-red-600 animate-spin" />
+                      ) : (
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                      )}
+                      停止任务
+                    </button>
+                  </div>
                 </div>
 
                 {(() => {
@@ -630,13 +802,49 @@ const WorkspacePage = () => {
 
           {/* 右侧 - 历史会话 */}
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-140px)] sticky top-24">
-              <div className="p-5 border-b border-gray-100 bg-white/50 backdrop-blur-sm z-10 h-[72px] flex items-center">
-                <div className="flex items-center gap-2">
-                  <History className="w-5 h-5 text-ios-gray" />
-                  <h2 className="text-[20px] font-bold text-black tracking-tight">
-                    历史记录
-                  </h2>
+            <div className="surface-card rounded-2xl overflow-hidden flex flex-col h-[calc(100vh-96px)] lg:sticky lg:top-20">
+              <div className="p-4 border-b border-slate-100/80 bg-white/45 backdrop-blur-sm z-10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-slate-500" />
+                    <h2 className="text-[19px] font-bold text-slate-900 tracking-tight">
+                      历史记录
+                    </h2>
+                  </div>
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-full">
+                    {filteredSessions.length}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="search"
+                    value={sessionSearch}
+                    onChange={(event) => setSessionSearch(event.target.value)}
+                    placeholder="搜索文件名或内容"
+                    className="w-full h-9 pl-9 pr-3 rounded-xl bg-slate-100/80 border border-transparent focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  />
+                </div>
+                <div className="grid grid-cols-4 gap-1 p-1 rounded-xl bg-slate-100/80">
+                  {[
+                    ['all', '全部'],
+                    ['active', '进行中'],
+                    ['completed', '完成'],
+                    ['failed', '失败'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setSessionFilter(value)}
+                      className={`py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
+                        sessionFilter === value
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
               
@@ -645,17 +853,17 @@ const WorkspacePage = () => {
                   <div className="flex items-center justify-center py-12">
                     <div className="w-6 h-6 border-2 border-ios-gray/30 border-t-ios-gray rounded-full animate-spin" />
                   </div>
-                ) : sessions.length === 0 ? (
+                ) : filteredSessions.length === 0 ? (
                   <div className="text-center py-12 space-y-2">
                     <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto text-gray-300">
                       <History className="w-6 h-6" />
                     </div>
                     <p className="text-ios-gray text-sm">
-                      暂无会话记录
+                      {sessions.length === 0 ? '暂无会话记录' : '没有匹配的会话'}
                     </p>
                   </div>
                 ) : (
-                  sessions.map((session) => (
+                  filteredSessions.map((session) => (
                     <SessionItem
                       key={session.id}
                       session={session}

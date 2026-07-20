@@ -7,8 +7,38 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #F2F2F7; /* iOS Grouped Background */
+  background:
+    radial-gradient(circle at 10% -10%, rgba(59, 130, 246, 0.15), transparent 32rem),
+    radial-gradient(circle at 92% 10%, rgba(124, 58, 237, 0.1), transparent 28rem),
+    #f5f7fb;
   color: #000000;
+}
+
+.bg-app-shell {
+  background:
+    radial-gradient(circle at 10% -10%, rgba(59, 130, 246, 0.15), transparent 32rem),
+    radial-gradient(circle at 92% 10%, rgba(124, 58, 237, 0.1), transparent 28rem),
+    #f5f7fb;
+}
+
+.surface-card {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(18px);
+}
+
+.surface-card-soft {
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  backdrop-filter: blur(14px);
+}
+
+.text-gradient {
+  color: transparent;
+  background-image: linear-gradient(120deg, #0f172a, #2563eb 55%, #7c3aed);
+  background-clip: text;
+  -webkit-background-clip: text;
 }
 
 code {
