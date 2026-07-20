@@ -1,5 +1,6 @@
 import json
 import asyncio
+import time
 from typing import List, Dict, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -30,6 +31,7 @@ class OptimizationService:
         self.enhance_service: Optional[AIService] = None
         self.emotion_service: Optional[AIService] = None
         self.compression_service: Optional[AIService] = None
+        self._last_api_request_started_at: Optional[float] = None
     
     def _init_ai_services(self):
         """初始化AI服务
@@ -307,6 +309,7 @@ class OptimizationService:
                 
                 # 调用AI
                 async def execute_call():
+                    await self._wait_for_request_slot()
                     # 使用配置中的流式设置，默认非流式（False）以避免API阻止
                     use_stream = settings.USE_STREAMING
                     
@@ -352,12 +355,6 @@ class OptimizationService:
                 history.append({"role": "assistant", "content": output_text})
                 total_chars += count_chinese_characters(output_text)
 
-                # API 请求间隔等待，避免触发 RATE_LIMIT
-                request_interval = max(settings.API_REQUEST_INTERVAL, 0)
-                if request_interval > 0 and idx < len(segments) - 1:
-                    print(f"[RATE LIMIT] 等待 {request_interval}s 后处理下一段落...", flush=True)
-                    await asyncio.sleep(request_interval)
-                
                 # 检查是否需要压缩历史 - 基于字符数阈值
                 if total_chars > settings.HISTORY_COMPRESSION_THRESHOLD:
                     print(f"\n[HISTORY COMPRESS] Triggering compression, Stage: {stage}", flush=True)
@@ -404,14 +401,62 @@ class OptimizationService:
                 # 直接抛出原异常，保留堆栈
                 raise
 
+    async def _wait_for_request_slot(self):
+        request_interval = max(settings.API_REQUEST_INTERVAL, 0)
+        now = time.monotonic()
+        if self._last_api_request_started_at is not None and request_interval > 0:
+            elapsed = now - self._last_api_request_started_at
+            wait_seconds = request_interval - elapsed
+            if wait_seconds > 0:
+                print(f"[RATE LIMIT] 请求间隔等待 {wait_seconds:.2f}s...", flush=True)
+                await asyncio.sleep(wait_seconds)
+                now = time.monotonic()
+
+        self._last_api_request_started_at = now
+
+    @staticmethod
+    def _is_retryable_request_error(error: Exception) -> bool:
+        error_message = str(error).lower()
+        retryable_keywords = (
+            "429",
+            "rate limit",
+            "rate_limit",
+            "timeout",
+            "timed out",
+            "connection",
+            "502",
+            "503",
+            "504",
+            "temporarily unavailable",
+            "server error",
+        )
+        return any(keyword in error_message for keyword in retryable_keywords)
+
     async def _run_with_retry(self, segment_index: int, stage: str, task):
-        """执行单次任务，不自动重试"""
-        try:
-            return await task()
-        except Exception as exc:
-            raise Exception(
-                f"段落 {segment_index + 1} 在 {stage} 阶段失败: {str(exc)}"
-            )
+        max_retries = max(settings.API_MAX_RETRIES, 0)
+        base_delay = max(settings.API_RETRY_BASE_DELAY, 0)
+        max_delay = max(settings.API_RETRY_MAX_DELAY, base_delay)
+
+        for attempt in range(max_retries + 1):
+            try:
+                return await task()
+            except Exception as exc:
+                should_retry = (
+                    attempt < max_retries
+                    and self._is_retryable_request_error(exc)
+                )
+                if not should_retry:
+                    raise Exception(
+                        f"段落 {segment_index + 1} 在 {stage} 阶段失败: {str(exc)}"
+                    )
+
+                retry_delay = min(base_delay * (2 ** attempt), max_delay)
+                print(
+                    f"[RETRY] 段落 {segment_index + 1} {stage} 阶段请求失败，"
+                    f"{retry_delay}s 后进行第 {attempt + 2} 次尝试: {str(exc)}",
+                    flush=True,
+                )
+                await asyncio.sleep(retry_delay)
     
     def _get_prompt(self, stage: str) -> str:
         """获取提示词，优先使用当前用户设置为默认的自定义提示词。"""

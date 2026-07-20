@@ -58,6 +58,6 @@ The GitHub Actions workflow builds ASCII-named artifacts:
 Create a release by pushing a tag:
 
 ```bash
-git tag v2.8.1
-git push origin v2.8.1
+git tag v2.8.2
+git push origin v2.8.2
 ```

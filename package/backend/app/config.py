@@ -102,12 +102,15 @@ class Settings(BaseSettings):
     USE_STREAMING: bool = False  # 默认使用非流式模式，避免被API阻止
     STREAM_QUEUE_MAX_SIZE: int = 256  # 单个 SSE 连接最多缓存的消息数
 
-    # API 请求间隔（秒），用于避免触发 RATE_LIMIT
-    API_REQUEST_INTERVAL: int = 6
+    # API 请求起始时间的最小间隔（秒）
+    API_REQUEST_INTERVAL: int = 1
+    API_MAX_RETRIES: int = 3
+    API_RETRY_BASE_DELAY: int = 2
+    API_RETRY_MAX_DELAY: int = 20
 
     # 思考模式配置
-    THINKING_MODE_ENABLED: bool = True  # 默认启用思考模式
-    THINKING_MODE_EFFORT: str = "high"  # 思考强度: none, low, medium, high, xhigh
+    THINKING_MODE_ENABLED: bool = False
+    THINKING_MODE_EFFORT: str = "low"  # 思考强度: none, low, medium, high, xhigh
     
     # JWT 密钥
     SECRET_KEY: str = "your-secret-key-change-this-in-production"

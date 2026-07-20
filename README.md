@@ -3,7 +3,14 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.1** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.1) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.2** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.2) · [查看完整更新日志](CHANGELOG.md)
+
+## v2.8.2 速度优化
+
+- 请求间隔从“每次完成后固定等待”改成“控制请求开始时间”，模型响应超过 1 秒时不再额外等待。
+- 默认请求间隔由 6 秒降至 1 秒，双阶段长文档可减少约 19 分钟固定等待。
+- 默认关闭高强度思考模式，避免普通润色任务消耗额外推理时间。
+- 遇到 429、超时、连接失败和 5xx 错误时自动指数退避重试。
 
 ## v2.8.1 修复亮点
 
@@ -225,6 +232,14 @@ COMPRESSION_BASE_URL=http://IP:PORT/v1
 USE_STREAMING=false  # 默认禁用，避免某些API（如Gemini）返回阻止错误
 STREAM_QUEUE_MAX_SIZE=256  # 单个浏览器 SSE 连接的最大缓存消息数
 
+# 快速请求调度
+API_REQUEST_INTERVAL=1
+API_MAX_RETRIES=3
+API_RETRY_BASE_DELAY=2
+API_RETRY_MAX_DELAY=20
+THINKING_MODE_ENABLED=false
+THINKING_MODE_EFFORT=low
+
 # 文件上传限制（MB），0 表示无限制
 MAX_UPLOAD_FILE_SIZE_MB=0
 
@@ -290,6 +305,12 @@ SEGMENT_SKIP_THRESHOLD=15
 | `DEFAULT_USAGE_LIMIT` | 新用户默认使用次数 | 1 |
 | `SEGMENT_SKIP_THRESHOLD` | 段落跳过阈值（字符数） | 15 |
 | `HISTORY_COMPRESSION_THRESHOLD` | 历史压缩阈值 | 5000 |
+| `API_REQUEST_INTERVAL` | 相邻请求开始时间的最小间隔（秒） | 1 |
+| `API_MAX_RETRIES` | 429、超时和临时服务错误的最大重试次数 | 3 |
+| `API_RETRY_BASE_DELAY` | 首次重试等待秒数，后续指数增长 | 2 |
+| `API_RETRY_MAX_DELAY` | 单次重试最大等待秒数 | 20 |
+| `THINKING_MODE_ENABLED` | 是否启用模型推理模式 | false |
+| `THINKING_MODE_EFFORT` | 推理强度 | low |
 | `USE_STREAMING` | 启用流式输出模式 | false（推荐）|
 | `STREAM_QUEUE_MAX_SIZE` | 单个 SSE 连接最大缓存消息数 | 256 |
 | `MAX_UPLOAD_FILE_SIZE_MB` | 文档上传大小限制，0 表示无限制 | 0 |
@@ -376,7 +397,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
 
 
 

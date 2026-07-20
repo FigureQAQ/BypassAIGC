@@ -3,9 +3,10 @@ import threading
 import time
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from app.services.concurrency import ConcurrencyManager
+from app.services.optimization_service import OptimizationService
 from app.services.stream_manager import StreamManager
 from app.word_formatter.services.job_manager import JobManager, JobStatus
 
@@ -47,6 +48,66 @@ class StreamManagerTests(unittest.IsolatedAsyncioTestCase):
 
         await manager.disconnect("session", queue)
         self.assertNotIn("session", manager.connections)
+
+
+class OptimizationServiceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_request_interval_only_waits_for_remaining_time(self):
+        service = object.__new__(OptimizationService)
+        service._last_api_request_started_at = 10.0
+
+        with (
+            patch(
+                "app.services.optimization_service.settings.API_REQUEST_INTERVAL",
+                1,
+            ),
+            patch(
+                "app.services.optimization_service.time.monotonic",
+                side_effect=[10.25, 11.0],
+            ),
+            patch(
+                "app.services.optimization_service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep_mock,
+        ):
+            await service._wait_for_request_slot()
+
+        sleep_mock.assert_awaited_once_with(0.75)
+        self.assertEqual(service._last_api_request_started_at, 11.0)
+
+    async def test_retryable_api_error_uses_exponential_backoff(self):
+        service = object.__new__(OptimizationService)
+        attempts = 0
+
+        async def flaky_task():
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise Exception("Error code: 429 - rate limit")
+            return "ok"
+
+        with (
+            patch(
+                "app.services.optimization_service.settings.API_MAX_RETRIES",
+                3,
+            ),
+            patch(
+                "app.services.optimization_service.settings.API_RETRY_BASE_DELAY",
+                2,
+            ),
+            patch(
+                "app.services.optimization_service.settings.API_RETRY_MAX_DELAY",
+                20,
+            ),
+            patch(
+                "app.services.optimization_service.asyncio.sleep",
+                new_callable=AsyncMock,
+            ) as sleep_mock,
+        ):
+            result = await service._run_with_retry(0, "polish", flaky_task)
+
+        self.assertEqual(result, "ok")
+        self.assertEqual(attempts, 2)
+        sleep_mock.assert_awaited_once_with(2)
 
 
 class JobManagerTests(unittest.IsolatedAsyncioTestCase):

@@ -93,7 +93,7 @@ def warn_insecure_defaults():
 app = FastAPI(
     title="AI 论文润色增强系统",
     description="高质量论文润色与原创性学术表达增强",
-    version="2.8.1"
+    version="2.8.2"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -384,7 +384,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 论文润色增强系统 API", "version": "2.8.1", "docs": "/docs"}
+        return {"message": "AI 论文润色增强系统 API", "version": "2.8.2", "docs": "/docs"}
     
     @app.get("/admin")
     @app.get("/admin/{path:path}")
@@ -453,7 +453,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.8.1",
+            "version": "2.8.2",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
@@ -498,8 +498,13 @@ SERVER_PORT=9800
 MAX_CONCURRENT_USERS=5
 MAX_CONCURRENT_PER_USER=3
 
-# API 请求间隔 (秒，每段落处理后等待，避免触发频率限制)
-API_REQUEST_INTERVAL=6
+# API 请求调度
+API_REQUEST_INTERVAL=1
+API_MAX_RETRIES=3
+API_RETRY_BASE_DELAY=2
+API_RETRY_MAX_DELAY=20
+THINKING_MODE_ENABLED=false
+THINKING_MODE_EFFORT=low
 
 # 会话压缩配置
 HISTORY_COMPRESSION_THRESHOLD=5000
