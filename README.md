@@ -1,4 +1,22 @@
-## AI 学术写作助手
+# AI 学术写作助手
+
+[![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
+[![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
+
+当前版本：**v2.7.0** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.7.0) · [查看完整更新日志](CHANGELOG.md)
+
+## v2.7.0 更新亮点
+
+本版本集中优化运行性能、任务稳定性与前端使用体验：
+
+- **更快的首屏加载**：React 页面改为按路由懒加载，工作台、管理后台和文档工具不再全部打入首屏脚本。
+- **更稳定的后台任务**：Word 编译移至工作线程，避免阻塞 FastAPI 事件循环；增加任务取消、关闭清理和定时回收。
+- **更安全的流式连接**：SSE 使用有界消息队列，慢连接只保留最新消息，避免长时间运行导致内存持续增长。
+- **更智能的资源使用**：页面位于后台时自动降低任务和队列轮询频率，重新切回页面后立即同步进度。
+- **新增工作台功能**：支持直接停止任务、搜索历史记录、按状态筛选、查看任务统计和快速进入四个文档工具。
+- **全新界面设计**：重做登录页与工作台，增加响应式产品介绍、快捷工具卡片、渐变视觉和玻璃质感组件。
+- **依赖安全更新**：更新前端锁定依赖，生产依赖安全审计为 0 个已知漏洞。
+- **新增回归测试**：覆盖任务取消、事件循环响应、SSE 背压、并发等待清理和后台回收。
 
 ## 当前文档处理能力
 
@@ -66,7 +84,7 @@
 本项目已提供一键启动脚本：
 
 ```text
-C:\Users\Administrator\Desktop\BypassAIGC-2.5.3\package\start-app.bat
+BypassAIGC-2.7.0\package\start-app.bat
 ```
 
 桌面快捷方式：
@@ -171,6 +189,7 @@ COMPRESSION_BASE_URL=http://IP:PORT/v1
 
 # 流式输出配置（推荐保持默认值）
 USE_STREAMING=false  # 默认禁用，避免某些API（如Gemini）返回阻止错误
+STREAM_QUEUE_MAX_SIZE=256  # 单个浏览器 SSE 连接的最大缓存消息数
 
 # 文件上传限制（MB），0 表示无限制
 MAX_UPLOAD_FILE_SIZE_MB=0
@@ -238,6 +257,7 @@ SEGMENT_SKIP_THRESHOLD=15
 | `SEGMENT_SKIP_THRESHOLD` | 段落跳过阈值（字符数） | 15 |
 | `HISTORY_COMPRESSION_THRESHOLD` | 历史压缩阈值 | 5000 |
 | `USE_STREAMING` | 启用流式输出模式 | false（推荐）|
+| `STREAM_QUEUE_MAX_SIZE` | 单个 SSE 连接最大缓存消息数 | 256 |
 | `MAX_UPLOAD_FILE_SIZE_MB` | 文档上传大小限制，0 表示无限制 | 0 |
 | `PDF_FONT_PATH` | PDF 导出中文字体路径，可留空自动检测 Windows 字体 | 空 |
 | `PDF_FONT_NAME` | PDF 导出字体注册名称 | DocumentChineseFont |
@@ -312,8 +332,8 @@ cd package
 
 推送以 `v` 开头的标签会自动触发构建：
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.7.0
+git push origin v2.7.0
 ```
 
 构建完成后，可在 Releases 页面下载各平台的可执行文件。
@@ -324,9 +344,6 @@ git push origin v1.0.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
-
-
 
 
 

@@ -10,6 +10,13 @@ Use this checklist before pushing BypassAIGC to GitHub.
 python -m py_compile package\main.py package\backend\app\main.py package\backend\app\config.py package\backend\app\services\document_ingestion_service.py package\backend\app\services\document_export_service.py package\backend\app\routes\optimization.py
 ```
 
+- Run backend regression tests:
+
+```powershell
+$env:PYTHONPATH = (Resolve-Path 'package\backend').Path
+python -m unittest discover -s package\backend\tests -v
+```
+
 - Run frontend build:
 
 ```powershell
@@ -48,6 +55,6 @@ The GitHub Actions workflow builds ASCII-named artifacts:
 Create a release by pushing a tag:
 
 ```bash
-git tag v2.5.3
-git push origin v2.5.3
+git tag v2.7.0
+git push origin v2.7.0
 ```

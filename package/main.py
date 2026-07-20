@@ -91,7 +91,7 @@ if settings.ADMIN_PASSWORD == "admin123":
 app = FastAPI(
     title="AI 论文润色增强系统",
     description="高质量论文润色与原创性学术表达增强",
-    version="1.0.0"
+    version="2.7.0"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -347,7 +347,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 论文润色增强系统 API", "version": "1.0.0", "docs": "/docs"}
+        return {"message": "AI 论文润色增强系统 API", "version": "2.7.0", "docs": "/docs"}
     
     @app.get("/admin")
     @app.get("/admin/{path:path}")
@@ -416,7 +416,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "1.0.0",
+            "version": "2.7.0",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
