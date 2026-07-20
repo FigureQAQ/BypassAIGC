@@ -45,6 +45,7 @@ temp/
 *.pid
 backend.pid
 frontend.pid
+.runtime/
 
 # Log files
 backend.log
@@ -73,7 +74,6 @@ package/build/
 *.sqlite-journal
 .env.*.local
 !.env.example
-!package/.env.example
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*

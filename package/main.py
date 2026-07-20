@@ -5,6 +5,7 @@ AI 学术写作助手 - 统一入口
 """
 
 import os
+import secrets
 import sys
 import webbrowser
 import threading
@@ -60,38 +61,39 @@ from fastapi.middleware.gzip import GZipMiddleware
 import uvicorn
 
 # 导入后端应用组件
-from app.config import settings
+from app.config import reload_settings, settings
 from app.database import init_db
 from app.routes import admin, auth, prompts, optimization
 from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
-from app.models.models import CustomPrompt
+from app.models.models import CustomPrompt, User
 from app.database import SessionLocal
 from app.services.ai_service import get_default_polish_prompt, get_default_enhance_prompt
 
-# 检查默认密钥（仅警告，不退出）
-if settings.SECRET_KEY == "your-secret-key-change-this-in-production":
-    print("\n" + "="*60)
-    print("[WARNING] 安全警告: 检测到默认 SECRET_KEY!")
-    print("="*60)
-    print("生产环境必须修改 SECRET_KEY,否则 JWT token 可被伪造!")
-    print(f"请在 {ENV_FILE} 文件中设置强密钥:")
-    print("  使用命令生成: python -c \"import secrets; print(secrets.token_urlsafe(32))\"")
-    print("="*60 + "\n")
+def warn_insecure_defaults():
+    """配置加载完成后提示不安全的默认值。"""
+    if settings.SECRET_KEY == "your-secret-key-change-this-in-production":
+        print("\n" + "="*60)
+        print("[WARNING] 安全警告: 检测到默认 SECRET_KEY!")
+        print("="*60)
+        print("生产环境必须修改 SECRET_KEY,否则 JWT token 可被伪造!")
+        print(f"请在 {ENV_FILE} 文件中设置强密钥:")
+        print("  使用命令生成: python -c \"import secrets; print(secrets.token_urlsafe(32))\"")
+        print("="*60 + "\n")
 
-if settings.ADMIN_PASSWORD == "admin123":
-    print("\n" + "="*60)
-    print("[WARNING] 安全警告: 检测到默认管理员密码!")
-    print("="*60)
-    print("生产环境必须修改 ADMIN_PASSWORD!")
-    print(f"请在 {ENV_FILE} 文件中设置强密码 (建议12位以上)")
-    print("="*60 + "\n")
+    if settings.ADMIN_PASSWORD == "admin123":
+        print("\n" + "="*60)
+        print("[WARNING] 安全警告: 检测到默认管理员密码!")
+        print("="*60)
+        print("生产环境必须修改 ADMIN_PASSWORD!")
+        print(f"请在 {ENV_FILE} 文件中设置强密码 (建议12位以上)")
+        print("="*60 + "\n")
 
 # 创建 FastAPI 应用
 app = FastAPI(
     title="AI 论文润色增强系统",
     description="高质量论文润色与原创性学术表达增强",
-    version="2.7.0"
+    version="2.8.0"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -173,6 +175,20 @@ async def startup_event():
                 is_system=True
             )
             db.add(enhance_prompt)
+
+        if settings.AUTO_CREATE_LOCAL_USER and settings.LOCAL_ACCESS_KEY:
+            local_user = db.query(User).filter(
+                User.card_key == settings.LOCAL_ACCESS_KEY
+            ).first()
+            if not local_user:
+                db.add(User(
+                    card_key=settings.LOCAL_ACCESS_KEY,
+                    access_link=f"/access/{settings.LOCAL_ACCESS_KEY}",
+                    display_name="本地用户",
+                    is_active=True,
+                    usage_limit=0,
+                    usage_count=0,
+                ))
         
         db.commit()
     finally:
@@ -347,7 +363,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 论文润色增强系统 API", "version": "2.7.0", "docs": "/docs"}
+        return {"message": "AI 论文润色增强系统 API", "version": "2.8.0", "docs": "/docs"}
     
     @app.get("/admin")
     @app.get("/admin/{path:path}")
@@ -416,16 +432,19 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.7.0",
+            "version": "2.8.0",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
 
 
-def open_browser(port: int):
+def open_browser(port: int, access_key: str = ""):
     """延迟打开浏览器"""
     time.sleep(2)  # 等待服务器启动
     url = f"http://localhost:{port}"
+    if access_key:
+        from urllib.parse import quote
+        url = f"{url}/access/{quote(access_key, safe='')}"
     print(f"\n🌐 正在打开浏览器: {url}")
     webbrowser.open(url)
 
@@ -433,78 +452,69 @@ def open_browser(port: int):
 def create_sample_env():
     """创建示例 .env 文件（如果不存在）"""
     if not os.path.exists(ENV_FILE):
-        sample_content = """# AI 学术写作助手配置文件
-# 请根据实际情况修改以下配置
+        local_access_key = f"local-{secrets.token_urlsafe(12)}"
+        secret_key = secrets.token_urlsafe(48)
+        admin_password = secrets.token_urlsafe(18)
+        sample_content = f"""# AI 学术写作助手配置文件
+# 设置以下 API 配置后重新启动即可使用
+OPENAI_API_KEY=your-api-key-here
+OPENAI_BASE_URL=https://api.openai.com/v1
+POLISH_MODEL=gpt-5
+ENHANCE_MODEL=gpt-5
+
+# 本地直接访问
+AUTO_CREATE_LOCAL_USER=true
+LOCAL_ACCESS_KEY={local_access_key}
 
 # 服务器配置
-SERVER_HOST=0.0.0.0
+SERVER_HOST=127.0.0.1
 SERVER_PORT=9800
 
 # 数据库配置 (SQLite 默认在 exe 同目录)
 # DATABASE_URL=sqlite:///./ai_polish.db
 
-# Redis 配置 (用于并发控制和队列)
-REDIS_URL=redis://localhost:6379/0
-
-# OpenAI API 配置
-OPENAI_API_KEY=your-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
-
-# 第一阶段模型配置 (论文润色) - 推荐使用 gemini-2.5-pro
-POLISH_MODEL=gemini-2.5-pro
-POLISH_API_KEY=your-api-key-here
-POLISH_BASE_URL=https://api.openai.com/v1
-
-# 第二阶段模型配置 (原创性增强) - 推荐使用 gemini-2.5-pro
-ENHANCE_MODEL=gemini-2.5-pro
-ENHANCE_API_KEY=your-api-key-here
-ENHANCE_BASE_URL=https://api.openai.com/v1
-
-# 感情文章润色模型配置 - 推荐使用 gemini-2.5-pro
-EMOTION_MODEL=gemini-2.5-pro
-EMOTION_API_KEY=your-api-key-here
-EMOTION_BASE_URL=https://api.openai.com/v1
-
 # 并发配置
-MAX_CONCURRENT_USERS=7
+MAX_CONCURRENT_USERS=5
+MAX_CONCURRENT_PER_USER=3
 
 # API 请求间隔 (秒，每段落处理后等待，避免触发频率限制)
 API_REQUEST_INTERVAL=6
 
 # 会话压缩配置
-HISTORY_COMPRESSION_THRESHOLD=2000
-COMPRESSION_MODEL=gemini-2.5-pro
-COMPRESSION_API_KEY=your-api-key-here
-COMPRESSION_BASE_URL=https://api.openai.com/v1
+HISTORY_COMPRESSION_THRESHOLD=5000
+COMPRESSION_MODEL=gpt-5
 
-# JWT 密钥 (请修改为随机字符串)
-SECRET_KEY=please-change-this-to-a-random-string-32-chars
+# JWT 密钥
+SECRET_KEY={secret_key}
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
-# 管理员账户 (请修改默认密码)
+# 管理员账户
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD=please-change-this-password
-DEFAULT_USAGE_LIMIT=1
+ADMIN_PASSWORD={admin_password}
+DEFAULT_USAGE_LIMIT=0
 SEGMENT_SKIP_THRESHOLD=15
 """
         with open(ENV_FILE, 'w', encoding='utf-8') as f:
             f.write(sample_content)
         print(f"✅ 已创建示例配置文件: {ENV_FILE}")
-        print("   请编辑此文件，填入您的 API Key 和其他配置")
+        print("   请编辑 OPENAI_API_KEY、OPENAI_BASE_URL 和模型名称，然后重新启动")
+        print(f"   管理员密码: {admin_password}")
 
 
 def main():
     """主入口函数"""
-    port = settings.SERVER_PORT
-    host = settings.SERVER_HOST
-    
     print("\n" + "="*60)
     print("🚀 AI 学术写作助手 - 启动中...")
     print("="*60)
     
     # 创建示例配置文件
     create_sample_env()
+    reload_settings()
+    warn_insecure_defaults()
+
+    port = settings.SERVER_PORT
+    host = settings.SERVER_HOST
     
     print(f"\n📍 服务地址: http://{host}:{port}")
     print(f"📍 管理后台: http://{host}:{port}/admin")
@@ -513,7 +523,10 @@ def main():
     print("="*60 + "\n")
     
     # 在后台线程中打开浏览器
-    browser_thread = threading.Thread(target=open_browser, args=(port,))
+    browser_thread = threading.Thread(
+        target=open_browser,
+        args=(port, settings.LOCAL_ACCESS_KEY or "")
+    )
     browser_thread.daemon = True
     browser_thread.start()
     

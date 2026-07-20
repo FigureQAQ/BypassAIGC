@@ -3,7 +3,20 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.7.0** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.7.0) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.0** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.0) · [查看完整更新日志](CHANGELOG.md)
+
+## v2.8.0 更新亮点
+
+本版本将源码运行流程简化为“配置一次 API，之后双击启动”：
+
+- **唯一配置文件**：源码模式统一读取仓库根目录 `.env`，不再复制到 `package/`、`package/backend/` 或桌面目录。
+- **一键 API 配置**：双击 `setup.bat`，填写 API Key、Base URL 和模型名称即可生成完整安全配置。
+- **一键启动**：双击 `start.bat`，自动创建 `.venv`、按依赖哈希决定是否安装依赖、启动前后端并打开浏览器。
+- **一键停止**：双击 `stop.bat`，通过 PID 和端口双重清理前后端进程。
+- **启动即进入工作台**：首次启动自动创建随机本地访问用户，浏览器打开后无需再进后台创建卡密。
+- **启动健康检查**：只有后端 `/health` 和前端页面都可访问时才提示启动成功。
+- **兼容旧入口**：`package/start-app.bat` 仍可使用，但会自动转发到根目录的新启动流程。
+- **更清晰的目录**：普通用户只需要关注根目录的 `.env`、`setup.bat`、`start.bat` 和 `stop.bat`。
 
 ## v2.7.0 更新亮点
 
@@ -31,7 +44,7 @@
 
 - Windows 启动脚本会自动切换到 UTF-8 控制台代码页（65001），并设置 PowerShell、Python、npm 子进程的 UTF-8 输入输出。
 - `package/start-app.ps1` 和 `package/build.ps1` 已保存为 UTF-8 with BOM，兼容 Windows PowerShell 5.1，避免脚本里的中文提示显示为乱码。
-- 如果手动运行脚本，推荐使用 `package/start-app.bat` 或在 PowerShell 中执行 `.\start-app.ps1`；脚本会自动处理中文编码。
+- Windows 用户直接双击仓库根目录的 `start.bat`；旧的 `package/start-app.bat` 会自动转发到新入口。
 
 专业论文润色与语言优化系统，适合本地部署、论文草稿预处理、文档格式保留导出和多阶段语言优化。
 
@@ -79,27 +92,40 @@
 
 ## 快速开始
 
-### Windows 一键启动（本地源码版）
+### Windows 三步启动（本地源码版）
 
-本项目已提供一键启动脚本：
+下载源码后，只需要操作仓库根目录：
 
-```text
-BypassAIGC-2.7.0\package\start-app.bat
+1. 双击 `setup.bat`，依次填写 API Key、Base URL 和模型名称。
+2. 双击 `start.bat`。
+3. 浏览器会自动打开。
+
+首次启动会自动创建 Python 虚拟环境并安装前后端依赖；以后只有依赖文件变化时才会重新安装。
+
+如果已经熟悉 `.env`，也可以跳过 `setup.bat`：
+
+```bash
+copy .env.example .env
 ```
 
-桌面快捷方式：
+然后只修改 `.env` 顶部的 4 项：
 
-```text
-AI学术写作助手-一键启动.lnk
+```env
+OPENAI_API_KEY=你的API密钥
+OPENAI_BASE_URL=https://api.openai.com/v1
+POLISH_MODEL=你的模型名称
+ENHANCE_MODEL=你的模型名称
 ```
 
-双击快捷方式后会自动：
+根目录启动脚本会自动：
 
-1. 同步桌面 `.env` 到 `package\.env` 和 `package\backend\.env`
-2. 关闭旧的 9800 / 5174 端口进程
-3. 启动后端 `http://localhost:9800`
-4. 启动前端 `http://localhost:5174`
-5. 自动打开浏览器
+1. 读取唯一的根目录 `.env`
+2. 创建或复用根目录 `.venv`
+3. 按需安装 Python 和 npm 依赖
+4. 清理旧的 9800 / 5174 端口进程
+5. 启动前后端并打开浏览器
+
+`setup.bat` 会自动生成随机的本地访问密钥，并让浏览器通过专属访问链接直接进入工作台。默认服务只监听 `127.0.0.1`，不会开放给局域网。
 
 常用地址：
 
@@ -109,23 +135,24 @@ AI学术写作助手-一键启动.lnk
 API 文档: http://localhost:9800/docs
 ```
 
-关闭应用时，关闭后端和前端两个命令行窗口即可。
+停止应用时双击根目录 `stop.bat`。
 
 ### 发布版快速开始
 
 无需安装任何开发环境，下载即可使用！
 
-1. 从 [Releases](https://github.com/uhwr/BypassAIGC/releases) 页面下载对应平台的可执行文件：
+1. 从 [Releases](https://github.com/FigureQAQ/BypassAIGC/releases) 页面下载对应平台的可执行文件：
    - Windows: `BypassAIGC-Windows-vX.X.X.zip`
    - macOS: `BypassAIGC-macOS-vX.X.X.tar.gz`
    - Linux: `BypassAIGC-Linux-vX.X.X.tar.gz`
 
 2. 解压到任意目录
 
-3. 首次运行会自动创建 `.env` 配置文件模板，编辑配置文件填入：
-   - API Key（POLISH_API_KEY、ENHANCE_API_KEY 等）
-   - 管理员密码（ADMIN_PASSWORD）
-   - JWT 密钥（SECRET_KEY）
+3. 首次运行会自动创建 `.env` 配置文件模板，至少填入：
+   - `OPENAI_API_KEY`
+   - `OPENAI_BASE_URL`
+   - `POLISH_MODEL`
+   - `ENHANCE_MODEL`
 
 4. 再次运行程序，将自动打开浏览器
 
@@ -264,20 +291,18 @@ SEGMENT_SKIP_THRESHOLD=15
 
 ## 项目结构
 
-```
-AI_GC/
-├── backend/              # FastAPI 后端
-│   ├── app/
-│   │   ├── routes/      # API 路由
-│   │   ├── services/    # 业务逻辑
-│   │   ├── models/      # 数据模型
-│   │   └── utils/       # 工具函数
-│   └── .env             # 环境配置
-├── frontend/             # React 前端
-│   └── src/
-│       ├── pages/       # 页面组件
-│       └── components/  # 通用组件
-└── README.md            # 本文件
+```text
+BypassAIGC/
+├── setup.bat            # 首次配置 API
+├── start.bat            # 一键启动
+├── stop.bat             # 一键停止
+├── .env                 # 唯一运行配置（自行创建，不提交）
+├── .env.example         # 配置模板
+├── package/             # 内部程序源码与构建文件
+│   ├── backend/         # FastAPI 后端
+│   └── frontend/        # React 前端
+├── docs/                # 截图和发布说明
+└── README.md
 ```
 
 
@@ -290,7 +315,7 @@ AI_GC/
 ## 常见问题
 
 **Q: 端口被占用？**  
-A: 关闭其他占用 8000 端口的程序
+A: 双击 `stop.bat`，它会清理默认的 9800 和 5174 端口。
 
 **Q: 配置修改后未生效？**  
 A: 重启程序使配置生效
@@ -332,8 +357,8 @@ cd package
 
 推送以 `v` 开头的标签会自动触发构建：
 ```bash
-git tag v2.7.0
-git push origin v2.7.0
+git tag v2.8.0
+git push origin v2.8.0
 ```
 
 构建完成后，可在 Releases 页面下载各平台的可执行文件。
@@ -344,9 +369,6 @@ git push origin v2.7.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
-
-
 
 
 

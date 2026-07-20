@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -19,17 +19,50 @@ const WelcomePage = () => {
     healthAPI.checkModels().catch(() => {});
   }, []);
 
+  const enterWorkspace = useCallback((key) => {
+    localStorage.setItem('cardKey', key);
+    navigate('/workspace');
+  }, [navigate]);
+
+  const verifyCardKey = useCallback(async (key, showErrors = true) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) {
+      if (showErrors) toast.error('请输入访问卡密');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await requestWithFallback('post', '/admin/verify-card-key', {
+        card_key: normalizedKey,
+      });
+      if (response.data.valid) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
+        localStorage.removeItem('displayName');
+        enterWorkspace(normalizedKey);
+      } else if (showErrors) {
+        toast.error('卡密验证失败，请检查卡密是否正确');
+      }
+    } catch (error) {
+      if (showErrors) {
+        const message = error.code === 'ECONNABORTED'
+          ? '验证超时，请确认后端服务已启动'
+          : (error.response?.data?.detail || '卡密验证失败，请检查卡密是否正确');
+        toast.error(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [enterWorkspace]);
+
   useEffect(() => {
     if (routeCardKey) {
       setCardKey(routeCardKey);
       setMode('card');
+      verifyCardKey(routeCardKey, false);
     }
-  }, [routeCardKey]);
-
-  const enterWorkspace = (key) => {
-    localStorage.setItem('cardKey', key);
-    navigate('/workspace');
-  };
+  }, [routeCardKey, verifyCardKey]);
 
   const handleAccountLogin = async () => {
     if (loading) return;
@@ -57,32 +90,7 @@ const WelcomePage = () => {
 
   const handleCardLogin = async () => {
     if (loading) return;
-    if (!cardKey.trim()) {
-      toast.error('请输入访问卡密');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await requestWithFallback('post', '/admin/verify-card-key', {
-        card_key: cardKey.trim(),
-      });
-      if (response.data.valid) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('username');
-        localStorage.removeItem('displayName');
-        enterWorkspace(cardKey.trim());
-      } else {
-        toast.error('卡密验证失败，请检查卡密是否正确');
-      }
-    } catch (error) {
-      const message = error.code === 'ECONNABORTED'
-        ? '验证超时，请确认后端服务已启动'
-        : (error.response?.data?.detail || '卡密验证失败，请检查卡密是否正确');
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
+    await verifyCardKey(cardKey);
   };
 
   const isAccountMode = mode === 'account';

@@ -22,7 +22,7 @@ from app.database import init_db
 from app.routes import admin, auth, prompts, optimization
 from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
-from app.models.models import CustomPrompt
+from app.models.models import CustomPrompt, User
 from app.database import SessionLocal
 from app.services.ai_service import get_default_polish_prompt, get_default_enhance_prompt
 
@@ -79,7 +79,7 @@ if settings.ADMIN_PASSWORD == "admin123":
 app = FastAPI(
     title="AI 论文润色增强系统",
     description="高质量论文润色与原创性学术表达增强",
-    version="2.7.0"
+    version="2.8.0"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -148,6 +148,20 @@ async def startup_event():
             )
             db.add(enhance_prompt)
 
+        if settings.AUTO_CREATE_LOCAL_USER and settings.LOCAL_ACCESS_KEY:
+            local_user = db.query(User).filter(
+                User.card_key == settings.LOCAL_ACCESS_KEY
+            ).first()
+            if not local_user:
+                db.add(User(
+                    card_key=settings.LOCAL_ACCESS_KEY,
+                    access_link=f"/access/{settings.LOCAL_ACCESS_KEY}",
+                    display_name="本地用户",
+                    is_active=True,
+                    usage_limit=0,
+                    usage_count=0,
+                ))
+
         db.commit()
     finally:
         db.close()
@@ -165,7 +179,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 论文润色增强系统 API",
-        "version": "2.7.0",
+        "version": "2.8.0",
         "docs": "/docs"
     }
 

@@ -15,8 +15,29 @@ def get_exe_dir():
 
 
 def get_env_file_path():
-    """获取 .env 文件路径"""
-    return os.path.join(get_exe_dir(), '.env')
+    """获取统一配置文件路径。
+
+    源码运行优先使用仓库根目录的 .env；打包运行继续使用可执行文件
+    同目录的 .env。BYPASSAIGC_ENV_FILE 可显式覆盖路径。
+    """
+    override_path = os.getenv("BYPASSAIGC_ENV_FILE")
+    if override_path:
+        return os.path.abspath(os.path.expanduser(override_path))
+
+    app_dir = get_exe_dir()
+    if getattr(sys, 'frozen', False):
+        return os.path.join(app_dir, '.env')
+
+    repository_root = os.path.dirname(os.path.dirname(app_dir))
+    candidates = [
+        os.path.join(repository_root, '.env'),
+        os.path.join(os.path.dirname(app_dir), '.env'),
+        os.path.join(app_dir, '.env'),
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+    return candidates[0]
 
 
 def get_default_database_url():
@@ -56,6 +77,8 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_PER_USER: int = 3
     DEFAULT_USAGE_LIMIT: int = 1
     SEGMENT_SKIP_THRESHOLD: int = 15
+    AUTO_CREATE_LOCAL_USER: bool = False
+    LOCAL_ACCESS_KEY: Optional[str] = None
 
     # Word Formatter 文件上传限制 (MB)，0 表示无限制
     MAX_UPLOAD_FILE_SIZE_MB: int = 0

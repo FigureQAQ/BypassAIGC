@@ -1,6 +1,14 @@
 # AI 学术写作助手 - 可执行文件打包
 
-当前发布版本：**v2.7.0**
+当前发布版本：**v2.8.0**
+
+## v2.8.0 简化启动更新
+
+- 源码运行统一使用仓库根目录 `.env`。
+- 根目录新增 `setup.bat`、`start.bat` 和 `stop.bat`。
+- 首次启动自动创建 `.venv` 并安装依赖，后续按文件哈希判断是否需要更新。
+- 启动脚本同时检查后端健康状态和前端页面。
+- 旧版 `package/start-app.bat` 改为兼容转发入口。
 
 ## v2.7.0 打包版更新
 
@@ -61,34 +69,19 @@ package/
 
 ## 一键启动（Windows 源码开发版）
 
-当前目录提供两个启动脚本：
+用户无需进入 `package/` 目录。请在仓库根目录运行：
 
 ```text
-start-app.ps1
-start-app.bat
+setup.bat
+start.bat
+stop.bat
 ```
 
-推荐双击桌面快捷方式：
+- `setup.bat`：生成唯一的根目录 `.env`，引导填写 API。
+- `start.bat`：自动创建虚拟环境、按需安装依赖并启动前后端。
+- `stop.bat`：停止默认前后端端口。
 
-```text
-AI学术写作助手-一键启动.lnk
-```
-
-或直接双击：
-
-```text
-package\start-app.bat
-```
-
-脚本会自动：
-
-1. 同步 `C:\Users\Administrator\Desktop\.env` 到 `package\.env` 和 `package\backend\.env`
-2. 清理旧的 9800 / 5174 端口进程
-3. 启动后端 `http://localhost:9800`
-4. 启动前端 `http://localhost:5174`
-5. 打开浏览器
-
-如果前端依赖不存在，脚本会自动执行 `npm ci`。
+当前目录的 `start-app.bat` 仅作为旧版兼容入口，会自动调用根目录 `start.ps1`。
 
 ## Word 文档处理范围
 
@@ -148,8 +141,8 @@ cd package
 
 1. **打标签触发**: 推送以 `v` 开头的标签时自动触发构建并创建 Release
    ```bash
-   git tag v2.7.0
-   git push origin v2.7.0
+   git tag v2.8.0
+   git push origin v2.8.0
    ```
 
 2. **手动触发**: 在 GitHub Actions 页面手动运行工作流

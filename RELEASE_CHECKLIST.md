@@ -27,9 +27,12 @@ npm run build
 - Check that PowerShell scripts parse:
 
 ```powershell
-$errors = $null; $tokens = $null
-[System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'package\start-app.ps1'), [ref]$tokens, [ref]$errors) | Out-Null
-$errors
+$scripts = @('setup.ps1', 'start.ps1', 'stop.ps1', 'package\start-app.ps1', 'package\build.ps1')
+foreach ($script in $scripts) {
+    $errors = $null; $tokens = $null
+    [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $script), [ref]$tokens, [ref]$errors) | Out-Null
+    $errors
+}
 ```
 
 ## Do Not Commit
@@ -55,6 +58,6 @@ The GitHub Actions workflow builds ASCII-named artifacts:
 Create a release by pushing a tag:
 
 ```bash
-git tag v2.7.0
-git push origin v2.7.0
+git tag v2.8.0
+git push origin v2.8.0
 ```
