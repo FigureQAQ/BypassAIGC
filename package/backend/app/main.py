@@ -79,7 +79,7 @@ if settings.ADMIN_PASSWORD == "admin123":
 app = FastAPI(
     title="AI 论文润色增强系统",
     description="高质量论文润色与原创性学术表达增强",
-    version="2.8.0"
+    version="2.8.1"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -179,7 +179,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 论文润色增强系统 API",
-        "version": "2.8.0",
+        "version": "2.8.1",
         "docs": "/docs"
     }
 
@@ -214,6 +214,19 @@ def _check_url_format(base_url: Optional[str]) -> tuple:
 _url_check_cache: dict = {}
 
 
+def _is_api_key_configured(api_key: Optional[str]) -> bool:
+    if not api_key or not api_key.strip():
+        return False
+
+    normalized_key = api_key.strip().lower()
+    placeholder_keys = {
+        "pwd",
+        "your-api-key-here",
+        "replace-with-your-api-key",
+    }
+    return normalized_key not in placeholder_keys
+
+
 async def _check_model_health(model_name: str, model: str, api_key: Optional[str], base_url: Optional[str]) -> dict:
     """检查单个模型的健康状态 - 只验证URL格式，不测试实际连接"""
     
@@ -226,7 +239,15 @@ async def _check_model_health(model_name: str, model: str, api_key: Optional[str
                 "base_url": base_url,
                 "error": "模型名称未配置"
             }
-        
+
+        if not _is_api_key_configured(api_key):
+            return {
+                "status": "unavailable",
+                "model": model,
+                "base_url": base_url,
+                "error": "API Key 未配置，请先运行 setup.bat 或编辑 .env"
+            }
+
         # 先检查 URL 格式是否有效
         is_valid, error_msg = _check_url_format(base_url)
         
@@ -286,8 +307,8 @@ async def check_models_health():
     results["models"]["polish"] = await _check_model_health(
         "polish",
         settings.POLISH_MODEL,
-        settings.POLISH_API_KEY,
-        settings.POLISH_BASE_URL
+        settings.POLISH_API_KEY or settings.OPENAI_API_KEY,
+        settings.POLISH_BASE_URL or settings.OPENAI_BASE_URL
     )
     if results["models"]["polish"]["status"] == "unavailable":
         results["overall_status"] = "degraded"
@@ -296,8 +317,8 @@ async def check_models_health():
     results["models"]["enhance"] = await _check_model_health(
         "enhance",
         settings.ENHANCE_MODEL,
-        settings.ENHANCE_API_KEY,
-        settings.ENHANCE_BASE_URL
+        settings.ENHANCE_API_KEY or settings.OPENAI_API_KEY,
+        settings.ENHANCE_BASE_URL or settings.OPENAI_BASE_URL
     )
     if results["models"]["enhance"]["status"] == "unavailable":
         results["overall_status"] = "degraded"
@@ -307,8 +328,8 @@ async def check_models_health():
         results["models"]["emotion"] = await _check_model_health(
             "emotion",
             settings.EMOTION_MODEL,
-            settings.EMOTION_API_KEY,
-            settings.EMOTION_BASE_URL
+            settings.EMOTION_API_KEY or settings.OPENAI_API_KEY,
+            settings.EMOTION_BASE_URL or settings.OPENAI_BASE_URL
         )
         if results["models"]["emotion"]["status"] == "unavailable":
             results["overall_status"] = "degraded"

@@ -42,6 +42,33 @@ const TOOL_LINKS = [
   },
 ];
 
+const getSessionErrorSummary = (errorMessage) => {
+  if (!errorMessage) {
+    return '网络连接超时，请稍后重试';
+  }
+
+  const normalizedError = errorMessage.toLowerCase();
+  if (normalizedError.includes('invalid_api_key')
+    || normalizedError.includes('incorrect api key')
+    || normalizedError.includes('api key 未配置')) {
+    return 'API Key 无效或未配置，请更新 .env 后重试';
+  }
+  if (normalizedError.includes('base url')) {
+    return 'API Base URL 配置错误，请检查 .env';
+  }
+  if (normalizedError.includes('rate_limit') || normalizedError.includes('429')) {
+    return 'API 请求过于频繁或余额不足，请稍后重试';
+  }
+  if (normalizedError.includes('timeout') || normalizedError.includes('超时')) {
+    return 'API 请求超时，请稍后继续处理';
+  }
+
+  return errorMessage
+    .replace(/^段落\s*\d+\s*在\s*\w+\s*阶段失败[:：]\s*/i, '')
+    .replace(/^ai调用失败[:：]\s*/i, '')
+    .slice(0, 120);
+};
+
 // 会话列表项组件 - 使用 memo 避免不必要重渲染
 const SessionItem = memo(({ session, activeSession, onView, onDelete, onRetry }) => {
   const handleDelete = useCallback((e) => {
@@ -59,6 +86,8 @@ const SessionItem = memo(({ session, activeSession, onView, onDelete, onRetry })
   const handleView = useCallback(() => {
     onView(session.session_id);
   }, [session.session_id, onView]);
+
+  const errorSummary = getSessionErrorSummary(session.error_message);
 
   return (
     <div
@@ -147,8 +176,12 @@ const SessionItem = memo(({ session, activeSession, onView, onDelete, onRetry })
       </div>
 
       {session.status === 'failed' && session.current_position < session.total_segments && (
-        <div className="text-[11px] text-ios-red bg-red-50 px-2 py-1 rounded mt-1">
-          {session.error_message ? '发生错误' : '网络超时'}
+        <div
+          className="flex items-start gap-1.5 text-[11px] leading-relaxed text-ios-red bg-red-50 px-2 py-1.5 rounded-lg mt-1 break-words"
+          title={session.error_message || errorSummary}
+        >
+          <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+          <span className="line-clamp-2">{errorSummary}</span>
         </div>
       )}
     </div>

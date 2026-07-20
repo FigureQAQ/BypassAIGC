@@ -3,7 +3,14 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.0** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.0) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.1** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.1) · [查看完整更新日志](CHANGELOG.md)
+
+## v2.8.1 修复亮点
+
+- 修复 DeepSeek 等 OpenAI 兼容接口只配置全局 Key/Base URL 时，模型健康检查错误提示“未配置”的问题。
+- 自动识别示例占位 Key，处理前给出明确配置提示。
+- 失败任务卡片直接显示 API Key、Base URL、限流、超时等可操作原因。
+- 已验证失败的 Word 任务在修正配置后可从断点继续处理。
 
 ## v2.8.0 更新亮点
 
@@ -369,7 +376,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
 
 
 
