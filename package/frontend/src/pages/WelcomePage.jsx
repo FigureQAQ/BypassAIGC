@@ -154,7 +154,7 @@ const WelcomePage = () => {
                 AI 学术写作助手
               </h1>
               <p className="text-ios-gray text-sm mt-1">
-                专业论文润色 · 智能语言优化
+                降低 AIGC 率 · 智能文本优化
               </p>
             </div>
           </div>

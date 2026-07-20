@@ -604,7 +604,7 @@ const AdminDashboard = () => {
                         </div>
                         <span className="text-xs font-medium text-gray-400">计数</span>
                       </div>
-                      <p className="text-sm font-medium text-gray-500 mb-1">论文润色</p>
+                      <p className="text-sm font-medium text-gray-500 mb-1">降低 AIGC 率</p>
                       <p className="text-2xl font-bold text-gray-900 tracking-tight">
                         {statistics.processing.paper_polish_count}
                       </p>
@@ -618,7 +618,7 @@ const AdminDashboard = () => {
                         </div>
                         <span className="text-xs font-medium text-gray-400">计数</span>
                       </div>
-                      <p className="text-sm font-medium text-gray-500 mb-1">润色 + 增强</p>
+                      <p className="text-sm font-medium text-gray-500 mb-1">降低 AIGC 率 + 降重</p>
                       <p className="text-2xl font-bold text-gray-900 tracking-tight">
                         {statistics.processing.paper_polish_enhance_count}
                       </p>

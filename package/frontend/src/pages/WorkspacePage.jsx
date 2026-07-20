@@ -192,7 +192,7 @@ SessionItem.displayName = 'SessionItem';
 
 const WorkspacePage = () => {
   const [text, setText] = useState('');
-  const [inputMode, setInputMode] = useState('text');
+  const [inputMode, setInputMode] = useState('file');
   const [selectedFile, setSelectedFile] = useState(null);
   const [processingMode, setProcessingMode] = useState('paper_polish_enhance');
   const [sessions, setSessions] = useState([]);
@@ -546,7 +546,7 @@ const WorkspacePage = () => {
                 一站式学术写作与文档处理
               </div>
               <h2 className="text-3xl sm:text-4xl font-bold tracking-tight max-w-2xl">
-                从文本优化到规范排版，
+                从文档上传到结果导出，
                 <span className="text-blue-300">一次完成。</span>
               </h2>
               <p className="mt-3 text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
@@ -600,9 +600,9 @@ const WorkspacePage = () => {
                 <div className="text-[15px] text-black">
                   <p className="font-semibold mb-1 text-ios-blue">当前模式说明</p>
                   <p className="text-gray-700 leading-relaxed">
-                    {processingMode === 'paper_polish' && '仅进行论文润色，提升文本的学术性和表达质量。'}
-                    {processingMode === 'paper_enhance' && '直接进行原创性增强，跳过润色阶段，适合已经润色过的文本。'}
-                    {processingMode === 'paper_polish_enhance' && '先进行论文润色，然后自动进行原创性增强，两阶段处理。'}
+                    {processingMode === 'paper_polish' && '仅降低 AIGC 率，优化表达并降低文本 AI 痕迹。'}
+                    {processingMode === 'paper_enhance' && '直接进行降重，改写表达并降低重复率。'}
+                    {processingMode === 'paper_polish_enhance' && '先降低 AIGC 率，再自动进行降重，两阶段处理。'}
                     {processingMode === 'emotion_polish' && '专为感情文章设计，生成更自然、更具人性化的表达。'}
                   </p>
                 </div>
@@ -610,10 +610,11 @@ const WorkspacePage = () => {
             </div>
 
             <div className="surface-card rounded-2xl p-5">
-              <div className="h-[40px] flex items-center mb-2">
-                <h2 className="text-[20px] font-bold text-black tracking-tight pl-1">
-                  新建任务
-                </h2>
+              <div className="mb-4 pl-1">
+                <h2 className="text-[20px] font-bold text-black tracking-tight">提交文档</h2>
+                <p className="text-[12px] text-ios-gray mt-1">
+                  Word 文档优先，自动保留原文档结构
+                </p>
               </div>
               
               {/* 处理模式选择 - iOS Segmented Control Style */}
@@ -621,12 +622,12 @@ const WorkspacePage = () => {
                 <label className="block text-[13px] font-medium text-ios-gray mb-2 ml-1 uppercase tracking-wide">
                   选择模式
                 </label>
-                <div className="space-y-3">
+                <div className="grid md:grid-cols-2 gap-3">
                   {[
-                    { id: 'paper_polish', title: '论文润色', desc: '提升学术表达质量' },
-                    { id: 'paper_enhance', title: '论文增强', desc: '直接提升原创性' },
-                    { id: 'paper_polish_enhance', title: '润色 + 增强', desc: '两阶段完整处理' },
-                    { id: 'emotion_polish', title: '感情文章润色', desc: '自然、人性化表达' }
+                    { id: 'paper_polish', title: '降低 AIGC 率', desc: '优化表达，降低 AI 痕迹' },
+                    { id: 'paper_enhance', title: '降重', desc: '改写表达，降低重复率' },
+                    { id: 'paper_polish_enhance', title: '降低 AIGC 率 + 降重', desc: '先降低 AI 痕迹，再进行降重' },
+                    { id: 'emotion_polish', title: '自然表达', desc: '适合感情和生活类文章' }
                   ].map((mode) => (
                     <label
                       key={mode.id}
@@ -657,18 +658,20 @@ const WorkspacePage = () => {
                 </div>
               </div>
               
-              <div className="mb-4 bg-gray-100 p-1 rounded-xl inline-flex">
-                <button
-                  onClick={() => setInputMode('text')}
-                  className={`px-4 py-2 rounded-lg text-[14px] font-medium transition-all ${inputMode === 'text' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
-                >
-                  粘贴文本
-                </button>
+              <div className="mb-4 grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl w-full">
                 <button
                   onClick={() => setInputMode('file')}
-                  className={`px-4 py-2 rounded-lg text-[14px] font-medium transition-all ${inputMode === 'file' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
+                  className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition-all ${inputMode === 'file' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
                 >
                   上传文档
+                  <span className="block text-[10px] font-normal text-ios-gray mt-0.5">Word / PDF / Markdown</span>
+                </button>
+                <button
+                  onClick={() => setInputMode('text')}
+                  className={`px-4 py-2 rounded-lg text-[14px] font-semibold transition-all ${inputMode === 'text' ? 'bg-white text-black shadow-sm' : 'text-ios-gray'}`}
+                >
+                  粘贴文本
+                  <span className="block text-[10px] font-normal text-ios-gray mt-0.5">适合短文本</span>
                 </button>
               </div>
 
@@ -694,17 +697,17 @@ const WorkspacePage = () => {
                       handleFileSelect(e.dataTransfer.files?.[0]);
                     }}
                     onDragOver={(e) => e.preventDefault()}
-                    className="w-full h-64 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50 hover:bg-white hover:border-ios-blue transition-all flex flex-col items-center justify-center text-center p-6"
+                    className="w-full min-h-[280px] border-2 border-dashed border-blue-200 rounded-2xl bg-gradient-to-b from-blue-50/70 to-white hover:bg-white hover:border-ios-blue transition-all flex flex-col items-center justify-center text-center p-6"
                   >
                     <Upload className="w-10 h-10 text-ios-blue mb-3" />
                     <div className="text-[16px] font-semibold text-black mb-1">
-                      点击选择或拖拽上传文档
+                      点击选择或拖拽上传 Word 文档
                     </div>
                     <div className="text-[13px] text-ios-gray">
                       支持 .docx、.pdf、.md、.markdown
                     </div>
                     <div className="text-[12px] text-ios-gray mt-2 max-w-md">
-                      Word 文档仅修改摘要、正文、致谢中的正文段落，标题、图片、表格、目录和参考文献保持不变。
+                      Word 会优先保留原格式，仅处理摘要、正文和致谢中的普通段落。
                     </div>
                   </button>
                   <input
@@ -787,9 +790,9 @@ const WorkspacePage = () => {
                 {(() => {
                   const session = currentActiveSessionData;
                   const getStageName = (stage) => {
-                    if (stage === 'polish') return '论文润色';
-                    if (stage === 'emotion_polish') return '感情文章润色';
-                    if (stage === 'enhance') return '原创性增强';
+                    if (stage === 'polish') return '降低 AIGC 率';
+                    if (stage === 'emotion_polish') return '自然表达';
+                    if (stage === 'enhance') return '降重';
                     return stage;
                   };
                   return (

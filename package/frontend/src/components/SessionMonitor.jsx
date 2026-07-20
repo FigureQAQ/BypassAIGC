@@ -343,10 +343,10 @@ const SessionMonitor = ({ adminToken }) => {
                       )}
                       {session.processing_mode && (
                         <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                          {session.processing_mode === 'paper_polish' ? '论文润色' :
-                           session.processing_mode === 'paper_enhance' ? '论文增强' :
-                           session.processing_mode === 'paper_polish_enhance' ? '论文润色+增强' :
-                           session.processing_mode === 'emotion_polish' ? '感情文章润色' :
+                          {session.processing_mode === 'paper_polish' ? '降低 AIGC 率' :
+                           session.processing_mode === 'paper_enhance' ? '降重' :
+                           session.processing_mode === 'paper_polish_enhance' ? '降低 AIGC 率 + 降重' :
+                           session.processing_mode === 'emotion_polish' ? '自然表达' :
                            session.processing_mode}
                         </span>
                       )}
@@ -357,7 +357,7 @@ const SessionMonitor = ({ adminToken }) => {
                       )}
                       {viewMode === 'history' && session.polished_char_count != null && (
                         <span className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700">
-                          润色后 {session.polished_char_count.toLocaleString()} 字符
+                          处理后 {session.polished_char_count.toLocaleString()} 字符
                         </span>
                       )}
                     </div>
@@ -452,10 +452,10 @@ const SessionMonitor = ({ adminToken }) => {
                         </span>
                         {session.processing_mode && (
                           <span className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-800">
-                            {session.processing_mode === 'paper_polish' ? '论文润色' :
-                             session.processing_mode === 'paper_enhance' ? '论文增强' :
-                             session.processing_mode === 'paper_polish_enhance' ? '论文润色+增强' :
-                             session.processing_mode === 'emotion_polish' ? '感情文章润色' :
+                            {session.processing_mode === 'paper_polish' ? '降低 AIGC 率' :
+                             session.processing_mode === 'paper_enhance' ? '降重' :
+                             session.processing_mode === 'paper_polish_enhance' ? '降低 AIGC 率 + 降重' :
+                             session.processing_mode === 'emotion_polish' ? '自然表达' :
                              session.processing_mode}
                           </span>
                         )}

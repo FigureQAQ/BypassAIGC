@@ -185,8 +185,8 @@ const ConfigManager = ({ adminToken }) => {
             <Cpu className="w-5 h-5 text-cyan-600" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">论文增强模型配置</h3>
-            <p className="text-xs text-gray-400">用于第二阶段：原创性增强</p>
+            <h3 className="text-lg font-bold text-gray-900">降重模型配置</h3>
+            <p className="text-xs text-gray-400">用于第二阶段：降低重复率</p>
           </div>
         </div>
 

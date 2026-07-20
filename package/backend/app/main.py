@@ -77,9 +77,9 @@ if settings.ADMIN_PASSWORD == "admin123":
     # 仅警告,不强制退出 (开发环境可能需要)
 
 app = FastAPI(
-    title="AI 论文润色增强系统",
-    description="高质量论文润色与原创性学术表达增强",
-    version="2.8.2"
+    title="AI 学术文本优化系统",
+    description="降低 AIGC 率、降重与文档结构保留",
+    version="2.8.3"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -178,8 +178,8 @@ async def shutdown_event():
 async def root():
     """根路径"""
     return {
-        "message": "AI 论文润色增强系统 API",
-        "version": "2.8.2",
+        "message": "AI 学术文本优化系统 API",
+        "version": "2.8.3",
         "docs": "/docs"
     }
 
