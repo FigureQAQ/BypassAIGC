@@ -171,7 +171,7 @@ export const wordFormatterAPI = {
   // Format text
   formatText: (data) =>
     api.post('/word-formatter/format/text', data, {
-      timeout: 60000,
+      timeout: 20000,
     }),
 
   // Format file
@@ -181,7 +181,7 @@ export const wordFormatterAPI = {
     return api.post('/word-formatter/format/file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       params: options,
-      timeout: 120000,
+      timeout: 30000,
     });
   },
 

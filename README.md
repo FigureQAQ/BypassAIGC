@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.15**（2026-08-29）
+当前版本：**v2.8.16**（2026-08-29）
 
 ## 主要功能
 
@@ -72,6 +72,12 @@
 - 增加实时进度预览，显示当前处理阶段、进度百分比和段落处理位置。
 - 导出时自动按照源文件类型选择输出格式，避免文档被导出为不匹配的格式。
 - Word 和 Markdown 输入继续使用保格式导出逻辑；PDF 使用 PDF 输出，纯文本使用 TXT 输出。
+
+## v2.8.16 修复
+
+- 修复文章预处理任务创建接口等待异步 AI 任务完成，导致页面长期停留在“正在初始化预处理任务...”的问题。
+- 预处理接口现在先返回任务编号，前端通过实时进度流继续显示分割、标记和校验进度。
+- 增加预处理请求超时提示，避免网络异常时页面无限等待。
 
 ## 快速开始
 

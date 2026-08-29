@@ -85,7 +85,7 @@ def warn_insecure_defaults():
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降低重复率、仅润色与文档结构保留",
-    version="2.8.15"
+    version="2.8.16"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -379,7 +379,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.15", "docs": "/docs"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.16", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
@@ -439,7 +439,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.8.15",
+            "version": "2.8.16",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }

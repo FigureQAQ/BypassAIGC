@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import asyncio
 from datetime import datetime
 from typing import List, Optional
 from urllib.parse import quote
@@ -417,7 +418,7 @@ async def format_text(
         await job_manager.run_job(job.job_id)
         increment_usage(user, db)
 
-    background_tasks.add_task(run_job)
+    asyncio.create_task(run_job())
 
     return JobResponse(
         job_id=job.job_id,
@@ -525,7 +526,7 @@ async def format_file(
         await job_manager.run_job(job.job_id)
         increment_usage(user, db)
 
-    background_tasks.add_task(run_job)
+    asyncio.create_task(run_job())
 
     return JobResponse(
         job_id=job.job_id,
@@ -780,7 +781,7 @@ async def preprocess_text(
         await job_manager.run_job(job.job_id, ai_service)
         increment_usage(user, db)
 
-    background_tasks.add_task(run_job)
+    asyncio.create_task(run_job())
 
     return PreprocessJobResponse(
         job_id=job.job_id,
@@ -866,7 +867,7 @@ async def preprocess_file(
         await job_manager.run_job(job.job_id, ai_service)
         increment_usage(user, db)
 
-    background_tasks.add_task(run_job)
+    asyncio.create_task(run_job())
 
     return PreprocessJobResponse(
         job_id=job.job_id,
