@@ -5,7 +5,7 @@
 
 ## v2.8.4 运行稳定性与文档维护
 
-当前发布版本：**v2.8.4**
+当前发布版本：**v2.8.5**
 
 - 系统提示词增加版本标识；内置提示词更新后，服务启动时会自动同步系统提示词。
 - 源码启动入口与打包版启动入口统一使用同一套提示词初始化逻辑。
@@ -13,7 +13,13 @@
 - 管理后台的 API 请求间隔默认值与运行时配置统一为 `1` 秒。
 - 本版本已通过后端测试（`9 passed`）、Python 语法检查、前端生产构建和 Git 差异检查。
 
-当前版本：**v2.8.4** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.4) · [查看完整更新日志](CHANGELOG.md)
+## v2.8.5 文章预处理界面修复
+
+- 修复文章预处理页面部分中文文案显示为乱码的问题。
+- 统一页面标题、流程步骤、文件上传、参数配置、任务状态和结果统计等文案为中文。
+- 保留文章预处理的任务轮询、SSE 状态更新、导出和失败重试逻辑。
+
+当前版本：**v2.8.5** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.5) · [查看完整更新日志](CHANGELOG.md)
 
 ## v2.8.3 界面与文档体验优化
 
@@ -415,8 +421,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
-
 
 
 

@@ -11,19 +11,19 @@ import { wordFormatterAPI } from '../api';
 
 // Paragraph type configuration with icons and colors
 const PARAGRAPH_TYPES = {
-  title: { label: 'Title', icon: Type, color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  heading1: { label: 'Heading 1', icon: Hash, color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  heading2: { label: 'Heading 2', icon: Hash, color: 'bg-cyan-100 text-cyan-700 border-cyan-300' },
-  heading3: { label: 'Heading 3', icon: Hash, color: 'bg-teal-100 text-teal-700 border-teal-300' },
-  abstract: { label: 'Abstract', icon: BookOpen, color: 'bg-amber-100 text-amber-700 border-amber-300' },
-  keywords: { label: 'Keywords', icon: List, color: 'bg-orange-100 text-orange-700 border-orange-300' },
-  body: { label: 'Body', icon: FileText, color: 'bg-gray-100 text-gray-700 border-gray-300' },
-  quote: { label: 'Quote', icon: Quote, color: 'bg-blue-100 text-blue-700 border-blue-300' },
-  list_item: { label: 'List item', icon: List, color: 'bg-green-100 text-green-700 border-green-300' },
-  table: { label: 'Table', icon: Table, color: 'bg-pink-100 text-pink-700 border-pink-300' },
-  figure: { label: 'Figure', icon: Image, color: 'bg-rose-100 text-rose-700 border-rose-300' },
-  code: { label: 'Code', icon: Code, color: 'bg-slate-100 text-slate-700 border-slate-300' },
-  reference: { label: 'Reference', icon: BookOpen, color: 'bg-teal-100 text-teal-700 border-teal-300' },
+  title: { label: '标题', icon: Type, color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  heading1: { label: '一级标题', icon: Hash, color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  heading2: { label: '二级标题', icon: Hash, color: 'bg-cyan-100 text-cyan-700 border-cyan-300' },
+  heading3: { label: '三级标题', icon: Hash, color: 'bg-teal-100 text-teal-700 border-teal-300' },
+  abstract: { label: '摘要', icon: BookOpen, color: 'bg-amber-100 text-amber-700 border-amber-300' },
+  keywords: { label: '关键词', icon: List, color: 'bg-orange-100 text-orange-700 border-orange-300' },
+  body: { label: '正文', icon: FileText, color: 'bg-gray-100 text-gray-700 border-gray-300' },
+  quote: { label: '引用', icon: Quote, color: 'bg-blue-100 text-blue-700 border-blue-300' },
+  list_item: { label: '列表项', icon: List, color: 'bg-green-100 text-green-700 border-green-300' },
+  table: { label: '表格', icon: Table, color: 'bg-pink-100 text-pink-700 border-pink-300' },
+  figure: { label: '图片', icon: Image, color: 'bg-rose-100 text-rose-700 border-rose-300' },
+  code: { label: '代码', icon: Code, color: 'bg-slate-100 text-slate-700 border-slate-300' },
+  reference: { label: '参考文献', icon: BookOpen, color: 'bg-teal-100 text-teal-700 border-teal-300' },
 };
 
 const ArticlePreprocessorPage = () => {
@@ -108,17 +108,17 @@ const ArticlePreprocessorPage = () => {
     const ext = selectedFile.name.substring(selectedFile.name.lastIndexOf('.')).toLowerCase();
 
     if (!allowedTypes.includes(selectedFile.type) && !allowedExtensions.includes(ext)) {
-      toast.error('浠呮敮??.txt, .md, .docx 鏂囦欢');
+      toast.error('仅支持 .txt、.md、.docx 文件');
       return;
     }
 
     if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error('鏂囦欢澶у皬涓嶈兘瓒呰繃 10MB');
+      toast.error('文件大小不能超过 10MB');
       return;
     }
 
     setFile(selectedFile);
-    toast.success(`宸查€夋嫨鏂囦欢: ${selectedFile.name}`);
+    toast.success(`已选择文件：${selectedFile.name}`);
   };
 
   const handleDrag = (e) => {
@@ -143,11 +143,11 @@ const ArticlePreprocessorPage = () => {
   // Start preprocessing
   const handleStartPreprocess = async () => {
     if (inputMode === 'file' && !file) {
-      toast.error('璇烽€夋嫨鏂囦欢');
+      toast.error('请选择文件');
       return;
     }
     if (inputMode === 'text' && !text.trim()) {
-      toast.error('Please enter text content');
+      toast.error('请输入文本内容');
       return;
     }
 
@@ -174,10 +174,10 @@ const ArticlePreprocessorPage = () => {
       const jobId = response.data.job_id;
       setCurrentJobId(jobId);
       startSSE(jobId);
-      toast.success('Preprocess task started');
+      toast.success('预处理任务已开始');
     } catch (error) {
       console.error('Start preprocess failed:', error);
-      toast.error(error.response?.data?.detail || 'Failed to start preprocess');
+      toast.error(error.response?.data?.detail || '启动预处理失败');
       setJobStatus(null);
     } finally {
       setIsSubmitting(false);
@@ -226,7 +226,7 @@ const ArticlePreprocessorPage = () => {
         JSON.parse(event.data);
         setJobStatus('completed');
         fetchResult(jobId);
-        toast.success('鏂囩珷棰勫鐞嗗畬鎴愶紒');
+        toast.success('文章预处理完成！');
         loadUsage();
       } catch (e) {
         console.error('SSE completed error:', e);
@@ -242,7 +242,7 @@ const ArticlePreprocessorPage = () => {
       try {
         const data = JSON.parse(event.data);
         setJobStatus('failed');
-        toast.error(`棰勫鐞嗗け?? ${data.message}`);
+        toast.error(`文章预处理失败：${data.message}`);
       } catch (e) {
         console.error('SSE error event:', e);
       }
@@ -301,13 +301,13 @@ const ArticlePreprocessorPage = () => {
       } else {
         // 浠诲姟澶辫触
         setJobStatus('failed');
-        toast.error(response.data.error || 'Preprocess failed');
+        toast.error(response.data.error || '预处理失败');
       }
     } catch (error) {
       console.error('Fetch result failed:', error);
       const status = error.response?.status;
       if (status === 404) {
-        toast.error('Task not found or expired');
+        toast.error('任务不存在或已过期');
         setJobStatus(null);
       } else if (status === 400) {
         console.log('Task is still running; retry later');
@@ -339,7 +339,7 @@ const ArticlePreprocessorPage = () => {
   // Export marked text
   const handleExportMarkdown = () => {
     if (!markedText) {
-      toast.error('娌℃湁鍙鍑虹殑鍐呭');
+      toast.error('没有可导出的内容');
       return;
     }
 
@@ -352,13 +352,13 @@ const ArticlePreprocessorPage = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success('Markdown exported');
+    toast.success('Markdown 导出成功');
   };
 
   // Navigate to format page
   const handleGoToFormat = () => {
     if (!markedText) {
-      toast.error('Please complete preprocessing first');
+      toast.error('请先完成文章预处理');
       return;
     }
 
@@ -401,10 +401,10 @@ const ArticlePreprocessorPage = () => {
     try {
       await wordFormatterAPI.deletePreprocessJob(currentJobId);
       handleReset();
-      toast.success('Task deleted');
+      toast.success('任务已删除');
     } catch (error) {
       console.error('Delete job failed:', error);
-      toast.error('鍒犻櫎浠诲姟澶辫触');
+      toast.error('删除任务失败');
     }
   };
 
@@ -417,7 +417,7 @@ const ArticlePreprocessorPage = () => {
     if (isEditing) {
       return (
         <div className="absolute top-0 left-0 z-10 bg-white border rounded-lg shadow-lg p-2 min-w-48">
-          <div className="text-xs text-gray-500 mb-1">閫夋嫨娈佃惤绫诲瀷</div>
+          <div className="text-xs text-gray-500 mb-1">选择段落类型</div>
           <div className="grid grid-cols-2 gap-1">
             {Object.entries(PARAGRAPH_TYPES).map(([key, cfg]) => {
               const Icon = cfg.icon;
@@ -447,7 +447,7 @@ const ArticlePreprocessorPage = () => {
       <button
         onClick={() => setEditingIndex(index)}
         className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded border ${config.color} hover:opacity-80 transition-opacity`}
-        title="鐐瑰嚮淇敼绫诲瀷"
+        title="点击修改类型"
       >
         <IconComponent className="w-3 h-3" />
         {config.label}
@@ -466,7 +466,7 @@ const ArticlePreprocessorPage = () => {
         <div className="bg-white rounded-lg border p-4 mb-4">
           <div className="flex items-center gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-            <span className="text-sm font-medium text-gray-700">姝ｅ湪鍒濆鍖栭澶勭悊浠诲姟...</span>
+            <span className="text-sm font-medium text-gray-700">正在初始化预处理任务...</span>
           </div>
         </div>
       );
@@ -519,22 +519,22 @@ const ArticlePreprocessorPage = () => {
               className="flex items-center gap-1 text-gray-600 hover:text-gray-900"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">杩斿洖瑙勮寖鐢熸垚</span>
+                  <span className="text-sm">返回规范生成</span>
             </Link>
             <div className="h-6 w-px bg-gray-300" />
-            <h1 className="text-lg font-semibold text-gray-900">Article Preprocessor</h1>
+                  <h1 className="text-lg font-semibold text-gray-900">文章预处理</h1>
           </div>
 
           <div className="flex items-center gap-4">
             {usage && (
               <div className="text-sm text-gray-600">
-                Usage: {usage.used}/{usage.limit}
+                使用情况：{usage.used}/{usage.limit}
               </div>
             )}
             {selectedSpec && (
               <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded text-sm">
                 <CheckCircle className="w-4 h-4" />
-                Selected spec: {specName || 'Custom'}
+                已选规范：{specName || '自定义'}
               </div>
             )}
           </div>
@@ -544,12 +544,12 @@ const ArticlePreprocessorPage = () => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Workflow indicator */}
         <div className="mb-6 flex items-center justify-center gap-2 text-sm text-gray-500">
-          <span className="px-3 py-1 bg-gray-100 rounded-full">1. 鐢熸垚瑙勮寖</span>
+          <span className="px-3 py-1 bg-gray-100 rounded-full">1. 生成规范</span>
           <ArrowRight className="w-4 h-4" />
           <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
-            2. 鏂囩珷棰勫??          </span>
+            2. 文章预处理          </span>
           <ArrowRight className="w-4 h-4" />
-          <span className="px-3 py-1 bg-gray-100 rounded-full">3. 鐢熸垚 Word</span>
+          <span className="px-3 py-1 bg-gray-100 rounded-full">3. 生成 Word</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -567,7 +567,7 @@ const ArticlePreprocessorPage = () => {
                   }`}
                 >
                   <Upload className="w-4 h-4 inline mr-2" />
-                  涓婁紶鏂囦欢
+                  上传文件
                 </button>
                 <button
                   onClick={() => setInputMode('text')}
@@ -623,14 +623,14 @@ const ArticlePreprocessorPage = () => {
                   ) : (
                     <>
                       <Upload className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                      <p className="text-gray-600 mb-2">鎷栨嫿鏂囦欢鍒拌繖閲岋紝鎴栫偣鍑婚€夋嫨</p>
+                      <p className="text-gray-600 mb-2">拖拽文件到这里，或点击选择</p>
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                       >
-                        閫夋嫨鏂囦欢
+                        选择文件
                       </button>
-                      <p className="text-sm text-gray-400 mt-2">鏀寔 .txt, .md, .docx (鏈€??10MB)</p>
+                    <p className="text-sm text-gray-400 mt-2">支持 .txt、.md、.docx（最大 10MB）</p>
                     </>
                   )}
                 </div>
@@ -638,7 +638,7 @@ const ArticlePreprocessorPage = () => {
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="鍦ㄦ绮樿创鎮ㄧ殑鏂囩珷鍐呭..."
+                  placeholder="请在此粘贴您的文章内容..."
                   className="w-full h-64 p-3 border rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               )}
@@ -652,7 +652,7 @@ const ArticlePreprocessorPage = () => {
               >
                 <span className="flex items-center gap-2">
                   <Settings className="w-4 h-4" />
-                  楂樼骇閰嶇疆
+                  高级配置
                 </span>
                 {showConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -660,7 +660,7 @@ const ArticlePreprocessorPage = () => {
                 <div className="px-4 pb-4 space-y-3 border-t">
                   <div className="pt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      姣忓潡鏈€澶ф钀芥暟
+                      每块最大段落数
                     </label>
                     <input
                       type="number"
@@ -670,11 +670,11 @@ const ArticlePreprocessorPage = () => {
                       max={100}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">寤鸿 30-50锛岃繃澶у彲鑳藉??AI 璇嗗埆涓嶅噯</p>
+                    <p className="text-xs text-gray-500 mt-1">建议 30-50，过大可能导致 AI 识别不准</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      姣忓潡鏈€澶у瓧绗︽暟
+                      每块最大字符数
                     </label>
                     <input
                       type="number"
@@ -684,7 +684,7 @@ const ArticlePreprocessorPage = () => {
                       max={20000}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Recommended: 6000-10000 chars.</p>
+                    <p className="text-xs text-gray-500 mt-1">建议范围：6000-10000 字符。</p>
                   </div>
                 </div>
               )}
@@ -700,12 +700,12 @@ const ArticlePreprocessorPage = () => {
                 {isSubmitting || jobStatus === 'running' ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    澶勭悊??..
+                    处理中...
                   </>
                 ) : (
                   <>
                     <Play className="w-5 h-5" />
-                    寮€濮嬮澶勭悊
+                    开始预处理
                   </>
                 )}
               </button>
@@ -728,14 +728,14 @@ const ArticlePreprocessorPage = () => {
             {jobStatus === 'completed' && paragraphs.length > 0 && (
               <div className="bg-white rounded-lg border p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-gray-900">Preprocess Result</h3>
+                  <h3 className="font-medium text-gray-900">预处理结果</h3>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setViewMode('list')}
                       className={`p-2 rounded ${
                         viewMode === 'list' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'
                       }`}
-                      title="鍒楄〃瑙嗗浘"
+                      title="列表视图"
                     >
                       <List className="w-4 h-4" />
                     </button>
@@ -744,7 +744,7 @@ const ArticlePreprocessorPage = () => {
                       className={`p-2 rounded ${
                         viewMode === 'raw' ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'
                       }`}
-                      title="鍘熷鏂囨湰"
+                      title="原始文本"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
@@ -778,19 +778,19 @@ const ArticlePreprocessorPage = () => {
                 <div className="grid grid-cols-3 gap-4 text-center text-sm mb-4">
                   <div className="bg-gray-50 rounded p-2">
                     <div className="text-2xl font-semibold text-blue-600">{paragraphs.length}</div>
-                    <div className="text-gray-500">Paragraphs</div>
+                    <div className="text-gray-500">段落数</div>
                   </div>
                   <div className="bg-gray-50 rounded p-2">
                     <div className="text-2xl font-semibold text-blue-600">
                       {paragraphs.filter((p) => p.type.startsWith('heading')).length}
                     </div>
-                    <div className="text-gray-500">鏍囬</div>
+                    <div className="text-gray-500">标题</div>
                   </div>
                   <div className="bg-gray-50 rounded p-2">
                     <div className="text-2xl font-semibold text-green-600">
                       {paragraphs.filter((p) => p.type === 'body').length}
                     </div>
-                    <div className="text-gray-500">姝ｆ枃</div>
+                    <div className="text-gray-500">正文</div>
                   </div>
                 </div>
 
@@ -841,11 +841,11 @@ const ArticlePreprocessorPage = () => {
             {!jobStatus && (
               <div className="bg-white rounded-lg border p-8 text-center">
                 <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Waiting for preprocessing</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">等待预处理</h3>
                 <p className="text-gray-500 text-sm">
-                  Upload a file or paste text, then click the start button.
+                  上传文件或粘贴文本，然后点击开始按钮。
                   <br />
-                  The system will detect and mark paragraph types.
+                  系统将自动识别并标记段落类型。
                 </p>
               </div>
             )}
@@ -854,8 +854,8 @@ const ArticlePreprocessorPage = () => {
             {jobStatus === 'failed' && (
               <div className="bg-white rounded-lg border p-8 text-center">
                 <AlertCircle className="w-16 h-16 mx-auto text-red-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Preprocess failed</h3>
-                <p className="text-gray-500 text-sm mb-4">Please check the file format or network connection, then try again.</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">预处理失败</h3>
+                <p className="text-gray-500 text-sm mb-4">请检查文件格式或网络连接后重试。</p>
                 <button
                   onClick={handleReset}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
