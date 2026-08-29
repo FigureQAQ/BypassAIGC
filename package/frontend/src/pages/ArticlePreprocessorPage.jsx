@@ -45,8 +45,18 @@ const ArticlePreprocessorPage = () => {
   const [chunkParagraphs, setChunkParagraphs] = useState(40);
   const [chunkChars, setChunkChars] = useState(8000);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('userApiKey') || '');
-  const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem('userBaseUrl') || 'https://api.deepseek.com');
-  const [model, setModel] = useState(() => localStorage.getItem('userModel') || 'deepseek-v4-flash');
+  const [baseUrl, setBaseUrl] = useState(() => {
+    const savedBaseUrl = localStorage.getItem('userBaseUrl');
+    return !savedBaseUrl || savedBaseUrl === 'https://api.openai.com/v1' || savedBaseUrl === 'http://IP:PORT/v1'
+      ? 'https://api.deepseek.com'
+      : savedBaseUrl;
+  });
+  const [model, setModel] = useState(() => {
+    const savedModel = localStorage.getItem('userModel');
+    return !savedModel || savedModel.startsWith('gpt')
+      ? 'deepseek-v4-flash'
+      : savedModel;
+  });
 
   // Job state
   const [currentJobId, setCurrentJobId] = useState(null);

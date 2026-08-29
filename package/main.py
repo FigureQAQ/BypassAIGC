@@ -11,6 +11,7 @@ import webbrowser
 import threading
 import time
 import signal
+import socket
 from typing import Optional
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -80,7 +81,7 @@ def warn_insecure_defaults():
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降重与文档结构保留",
-    version="2.8.3"
+    version="2.8.11"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -374,7 +375,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.10", "docs": "/docs"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.11", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
@@ -434,7 +435,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.8.3",
+            "version": "2.8.11",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
@@ -443,10 +444,7 @@ else:
 def open_browser(port: int, access_key: str = ""):
     """延迟打开浏览器"""
     time.sleep(2)  # 等待服务器启动
-    url = f"http://localhost:{port}"
-    if access_key:
-        from urllib.parse import quote
-        url = f"{url}/access/{quote(access_key, safe='')}"
+    url = f"http://localhost:{port}/article-preprocessor"
     print(f"\n🌐 正在打开浏览器: {url}")
     webbrowser.open(url)
 
@@ -458,9 +456,9 @@ def create_sample_env():
         sample_content = f"""# AI 学术写作助手配置文件
 # 设置以下 API 配置后重新启动即可使用
 OPENAI_API_KEY=your-api-key-here
-OPENAI_BASE_URL=https://api.openai.com/v1
-POLISH_MODEL=gpt-5
-ENHANCE_MODEL=gpt-5
+OPENAI_BASE_URL=https://api.deepseek.com
+POLISH_MODEL=deepseek-v4-flash
+ENHANCE_MODEL=deepseek-v4-flash
 
 # 本地直接访问
 AUTO_CREATE_LOCAL_USER=true
@@ -487,7 +485,7 @@ THINKING_MODE_EFFORT=low
 
 # 会话压缩配置
 HISTORY_COMPRESSION_THRESHOLD=5000
-COMPRESSION_MODEL=gpt-5
+COMPRESSION_MODEL=deepseek-v4-flash
 
 DEFAULT_USAGE_LIMIT=0
 SEGMENT_SKIP_THRESHOLD=15
@@ -498,6 +496,50 @@ SEGMENT_SKIP_THRESHOLD=15
         print("   请编辑 OPENAI_API_KEY、OPENAI_BASE_URL 和模型名称，然后重新启动")
 
 
+def migrate_legacy_env():
+    """迁移旧版本的 GPT 默认配置，避免覆盖当前 DeepSeek 配置。"""
+    if not os.path.exists(ENV_FILE):
+        return
+
+    replacements = {
+        "OPENAI_BASE_URL": "https://api.deepseek.com",
+        "POLISH_MODEL": "deepseek-v4-flash",
+        "ENHANCE_MODEL": "deepseek-v4-flash",
+        "COMPRESSION_MODEL": "deepseek-v4-flash",
+    }
+    with open(ENV_FILE, "r", encoding="utf-8-sig") as env_file:
+        lines = env_file.readlines()
+
+    changed = False
+    migrated_lines = []
+    for line in lines:
+        updated_line = line
+        for key, value in replacements.items():
+            if line.startswith(f"{key}="):
+                current_value = line.split("=", 1)[1].strip()
+                if current_value.startswith("gpt") or current_value in {
+                    "https://api.openai.com/v1",
+                    "http://IP:PORT/v1",
+                }:
+                    updated_line = f"{key}={value}\n"
+                    changed = True
+                break
+        migrated_lines.append(updated_line)
+
+    if changed:
+        with open(ENV_FILE, "w", encoding="utf-8", newline="\n") as env_file:
+            env_file.writelines(migrated_lines)
+        print("✅ 已将旧版 GPT 默认配置迁移为 DeepSeek 配置")
+
+
+def is_service_running(host: str, port: int) -> bool:
+    """检查本地服务端口是否已被当前应用占用。"""
+    probe_host = "127.0.0.1" if host in {"0.0.0.0", "localhost"} else host
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.settimeout(0.5)
+        return probe.connect_ex((probe_host, port)) == 0
+
+
 def main():
     """主入口函数"""
     print("\n" + "="*60)
@@ -506,11 +548,17 @@ def main():
     
     # 创建示例配置文件
     create_sample_env()
+    migrate_legacy_env()
     reload_settings()
     warn_insecure_defaults()
 
     port = settings.SERVER_PORT
     host = settings.SERVER_HOST
+
+    if is_service_running(host, port):
+        print(f"ℹ️ 服务已在运行，将打开现有页面: http://localhost:{port}/article-preprocessor")
+        open_browser(port, settings.LOCAL_ACCESS_KEY or "")
+        return
     
     print(f"\n📍 服务地址: http://{host}:{port}")
     print(f"📍 API 文档: http://{host}:{port}/docs")

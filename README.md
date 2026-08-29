@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.10**（2026-08-29）
+当前版本：**v2.8.11**（2026-08-29）
 
 ## 主要功能
 
@@ -29,6 +29,13 @@
 
 - 修复旧版本数据库只有随机本地卡密时，新版固定使用 `local-use` 导致“无效的卡密”的问题。
 - 启动时自动确保 `local-use` 本地身份存在，并兼容旧的本地访问身份。
+
+## v2.8.11 修复
+
+- Windows 打包版改为无控制台窗口运行，避免双击时黑色窗口一闪而过造成误判。
+- 重复双击时检测已运行服务并打开现有文章预处理页面。
+- 启动时自动将旧版 GPT/OpenAI 默认配置迁移为 DeepSeek。
+- 浏览器中遗留的 GPT 默认模型和 OpenAI 默认地址会自动迁移为 DeepSeek。
 
 ## 快速开始
 

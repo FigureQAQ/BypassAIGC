@@ -60,15 +60,15 @@ class Settings(BaseSettings):
     
     # OpenAI API 配置
     OPENAI_API_KEY: str = "pwd"
-    OPENAI_BASE_URL: str = "http://IP:PORT/v1"
+    OPENAI_BASE_URL: str = "https://api.deepseek.com"
     
     # 第一阶段模型配置 (论文润色)
-    POLISH_MODEL: str = "gpt-5"
+    POLISH_MODEL: str = "deepseek-v4-flash"
     POLISH_API_KEY: Optional[str] = None
     POLISH_BASE_URL: Optional[str] = None
     
     # 第二阶段模型配置 (原创性增强)
-    ENHANCE_MODEL: str = "gpt-5"
+    ENHANCE_MODEL: str = "deepseek-v4-flash"
     ENHANCE_API_KEY: Optional[str] = None
     ENHANCE_BASE_URL: Optional[str] = None
     
@@ -89,7 +89,7 @@ class Settings(BaseSettings):
 
     # 会话压缩配置
     HISTORY_COMPRESSION_THRESHOLD: int = 5000  # 汉字数量阈值
-    COMPRESSION_MODEL: str = "gpt-5"
+    COMPRESSION_MODEL: str = "deepseek-v4-flash"
     COMPRESSION_API_KEY: Optional[str] = None
     COMPRESSION_BASE_URL: Optional[str] = None
     
