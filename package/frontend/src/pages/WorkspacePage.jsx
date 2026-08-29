@@ -591,7 +591,6 @@ const WorkspacePage = () => {
                     {processingMode === 'paper_polish' && '仅降低 AIGC 率，优化表达并降低文本 AI 痕迹。'}
                     {processingMode === 'paper_enhance' && '直接进行降重，改写表达并降低重复率。'}
                     {processingMode === 'paper_polish_enhance' && '先降低 AIGC 率，再自动进行降重，两阶段处理。'}
-                    {processingMode === 'emotion_polish' && '专为感情文章设计，生成更自然、更具人性化的表达。'}
                   </p>
                 </div>
               </div>
@@ -613,9 +612,8 @@ const WorkspacePage = () => {
                 <div className="grid md:grid-cols-2 gap-3">
                   {[
                     { id: 'paper_polish', title: '降低 AIGC 率', desc: '优化表达，降低 AI 痕迹' },
-                    { id: 'paper_enhance', title: '降重', desc: '改写表达，降低重复率' },
-                    { id: 'paper_polish_enhance', title: '降低 AIGC 率 + 降重', desc: '先降低 AI 痕迹，再进行降重' },
-                    { id: 'emotion_polish', title: '自然表达', desc: '适合感情和生活类文章' }
+                    { id: 'paper_enhance', title: '降低重复率', desc: '改写表达，降低重复率' },
+                    { id: 'paper_polish_enhance', title: '降低 AIGC 率 + 降重', desc: '先降低 AI 痕迹，再进行降重' }
                   ].map((mode) => (
                     <label
                       key={mode.id}
