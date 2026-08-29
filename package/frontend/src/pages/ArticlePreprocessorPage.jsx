@@ -578,7 +578,7 @@ const ArticlePreprocessorPage = () => {
                   }`}
                 >
                   <FileText className="w-4 h-4 inline mr-2" />
-                  绮樿创鏂囨湰
+                  粘贴文本
                 </button>
               </div>
 

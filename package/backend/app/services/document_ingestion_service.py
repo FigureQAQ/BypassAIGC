@@ -57,8 +57,8 @@ def validate_upload(filename: str, content: bytes) -> str:
         raise DocumentIngestionError("filename cannot be empty")
 
     ext = _get_extension(filename)
-    if ext not in {"docx", "pdf", "md", "markdown"}:
-        raise DocumentIngestionError("Only .docx, .pdf, .md, and .markdown files are supported")
+    if ext not in {"docx", "pdf", "txt", "md", "markdown"}:
+        raise DocumentIngestionError("Only .docx, .pdf, .txt, .md, and .markdown files are supported")
 
     max_size_mb = settings.MAX_UPLOAD_FILE_SIZE_MB
     if max_size_mb > 0:
@@ -566,7 +566,50 @@ def ingest_document(filename: str, content: bytes, mime_type: Optional[str] = No
         return ingest_docx(filename, content, mime_type)
     if ext == "pdf":
         return ingest_pdf(filename, content, mime_type)
+    if ext == "txt":
+        return ingest_txt(filename, content, mime_type)
     return ingest_markdown(filename, content, mime_type)
+
+
+def ingest_txt(filename: str, content: bytes, mime_type: Optional[str] = None) -> IngestionResult:
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("gb18030")
+        except UnicodeDecodeError as exc:
+            raise DocumentIngestionError("无法按 UTF-8 或 GB18030 编码解析 TXT 文件") from exc
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
+    if not text:
+        raise DocumentIngestionError("TXT 文件没有可处理的正文内容")
+
+    counts = count_words(text)
+    block = DocumentBlock(
+        block_id="text:block:0",
+        text=text,
+        block_type="body",
+        block_index=0,
+        offset_start=0,
+        offset_end=len(text),
+        structure_meta={"source_format": "txt"},
+    )
+    return IngestionResult(
+        source_type="text",
+        original_text=text,
+        source_filename=filename,
+        source_mime_type=mime_type or "text/plain",
+        source_file_size=len(content),
+        source_file_blob=content,
+        source_text_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        word_count=counts["word_count"],
+        char_count=counts["char_count"],
+        chinese_char_count=counts["chinese_char_count"],
+        english_word_count=counts["english_word_count"],
+        document_meta={"editable_sections": ["body"], "source_format": "txt"},
+        preserve_format_available=False,
+        blocks=[block],
+    )
 
 
 def ingest_markdown(filename: str, content: bytes, mime_type: Optional[str] = None) -> IngestionResult:
@@ -700,7 +743,7 @@ def ingest_docx(filename: str, content: bytes, mime_type: Optional[str] = None) 
         package = DocxPackage.from_bytes(content)
         root = package.read_xml("word/document.xml")
     except Exception as exc:
-        raise DocumentIngestionError(f"鏃犳硶瑙ｆ瀽 docx 鏂囦欢: {exc}") from exc
+        raise DocumentIngestionError(f"无法解析 DOCX 文件：{exc}") from exc
 
     paragraphs = root.xpath(".//w:p", namespaces=NSMAP)
     style_names = _load_style_names(package)

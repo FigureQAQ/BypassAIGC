@@ -19,12 +19,12 @@
 - 统一页面标题、流程步骤、文件上传、参数配置、任务状态和结果统计等文案为中文。
 - 保留文章预处理的任务轮询、SSE 状态更新、导出和失败重试逻辑。
 
-当前版本：**v2.8.5** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.5) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.6** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.6) · [查看完整更新日志](CHANGELOG.md)
 
 ## v2.8.3 界面与文档体验优化
 
 - 工作台默认进入“上传文档”，Word 文档成为首选提交方式。
-- 上传入口支持拖拽，明确展示 Word、PDF 和 Markdown 支持范围。
+- 上传入口支持拖拽，明确展示 Word、TXT、PDF 和 Markdown 支持范围。
 - 处理模式改名为“降低 AIGC 率”“降重”和“降低 AIGC 率 + 降重”。
 - 模式选择改为双列卡片布局，说明更清晰，长页面更紧凑。
 - 同步欢迎页、管理后台、会话监控和 Markdown 文档中的用户术语。
@@ -71,7 +71,7 @@
 
 ## 当前文档处理能力
 
-- 默认上传 Word（.docx）文档，也支持 PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴。
+- 默认上传 Word（.docx）文档，也支持 TXT（.txt）、PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴。
 - Word 文档仅润色摘要、正文、致谢中的普通正文段落；目录、标题、图片、表格、参考文献、附录、图表题注、关键词、公式、代码和复杂符号语句会保持不变。
 - Markdown 文档会按论文结构识别摘要、正文、致谢，只润色普通文本段落；标题、目录、参考文献、附录、代码块、表格、公式、链接、图片、行内代码和复杂符号语句会保持不变。
 - Markdown 导出会优先回填到原始 `.md/.markdown` 文件结构中，保留标题层级、代码块、表格、公式和其他 Markdown 语法。
@@ -120,7 +120,7 @@
 
 本仓库不是原作者官方发布版本，主要面向本地部署、论文文档处理和 GitHub Release 分发做了以下调整：
 
-- **文档提交能力**：默认从 Word（.docx）上传开始，也支持 PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴。
+- **文档提交能力**：默认从 Word（.docx）上传开始，也支持 TXT（.txt）、PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴。
 - **论文范围识别**：Word 与 Markdown 会优先识别摘要、正文、致谢，只润色普通正文段落，尽量避免改动目录、标题、参考文献、附录、图表题注、关键词等结构性内容。
 - **技术内容保护**：公式、代码、表格、图片、链接、行内代码和复杂符号/字母语句会被保护，降低论文里的技术内容被误改的概率。
 - **保格式导出**：Word 导出会基于原始 `.docx` 替换可润色段落；Markdown 导出会回填到原始 Markdown 结构；同时保留 TXT、Word、Markdown、PDF 多格式导出。
@@ -208,7 +208,7 @@ API 文档: http://localhost:9800/docs
 - Word 保留范围：真正的短标题、图片、表格、目录、参考文献、附录、图表题注、关键词等不会被修改。
 - Word 导出会基于原始 `.docx` 文件进行文本替换，尽量保持提交文档的原始样式、图片、分页结构和对象不变。
 - PDF 支持文本提取和 PDF 导出；扫描件或图片型 PDF 如果无法提取文本，会提示无法处理。
-- Markdown 支持上传和导出，适合保留轻量文本结构。
+- TXT 和 Markdown 支持上传和导出，适合处理轻量文本结构。
 - 详情页会对修改后的文字做高亮显示，便于逐段核对。
 
 ### 配置文件说明
@@ -298,7 +298,7 @@ SEGMENT_SKIP_THRESHOLD=15
 
 - **双阶段优化**: 降低 AIGC 率 + 降重
 - **智能分段**: 自动识别标题，跳过短段落
-- **文档提交**: 默认上传 Word（.docx），也支持 PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴
+- **文档提交**: 默认上传 Word（.docx），也支持 TXT（.txt）、PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴
 - **多格式导出**: 优化结果可导出为 TXT、Markdown、Word 和 PDF
 - **Word 保格式输出**: Word 文档导出时保留原文档结构，仅替换被优化的正文段落文字
 - **Word 范围控制**: Word 文档仅修改摘要、正文、致谢中的正文段落，标题、图片、表格、目录、参考文献、附录、图表题注和关键词保持不变
@@ -421,9 +421,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
-
-
 
 
 

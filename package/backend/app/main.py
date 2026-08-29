@@ -184,7 +184,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 学术文本优化系统 API",
-        "version": "2.8.3",
+        "version": "2.8.6",
         "docs": "/docs"
     }
 
