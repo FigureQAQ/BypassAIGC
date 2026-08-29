@@ -63,7 +63,7 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降重与文档结构保留",
-    version="2.8.11"
+    version="2.8.12"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -166,7 +166,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 学术文本优化系统 API",
-        "version": "2.8.11",
+        "version": "2.8.12",
         "docs": "/docs"
     }
 

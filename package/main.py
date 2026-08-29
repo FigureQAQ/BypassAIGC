@@ -15,6 +15,10 @@ import socket
 from typing import Optional
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
 for stream in (sys.stdout, sys.stderr):
     if hasattr(stream, "reconfigure"):
         try:
@@ -81,7 +85,7 @@ def warn_insecure_defaults():
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降重与文档结构保留",
-    version="2.8.11"
+    version="2.8.12"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -375,7 +379,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.11", "docs": "/docs"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.12", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
@@ -435,7 +439,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.8.11",
+            "version": "2.8.12",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
@@ -580,7 +584,8 @@ def main():
             host=host,
             port=port,
             log_level="info",
-            access_log=True
+            access_log=True,
+            log_config=None,
         )
     except KeyboardInterrupt:
         print("\n\n👋 服务已停止")

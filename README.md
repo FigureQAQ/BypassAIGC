@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.11**（2026-08-29）
+当前版本：**v2.8.12**（2026-08-29）
 
 ## 主要功能
 
@@ -36,6 +36,11 @@
 - 重复双击时检测已运行服务并打开现有文章预处理页面。
 - 启动时自动将旧版 GPT/OpenAI 默认配置迁移为 DeepSeek。
 - 浏览器中遗留的 GPT 默认模型和 OpenAI 默认地址会自动迁移为 DeepSeek。
+
+## v2.8.12 修复
+
+- 修复 Windows 无控制台模式下 `sys.stdout` 和 `sys.stderr` 为空导致启动中断的问题。
+- 保留无黑框启动体验，同时确保后台服务可以正常监听 `9800` 端口。
 
 ## 快速开始
 
