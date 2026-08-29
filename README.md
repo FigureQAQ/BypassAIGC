@@ -13,7 +13,7 @@
 - 管理后台的 API 请求间隔默认值与运行时配置统一为 `1` 秒。
 - 本版本已通过后端测试（`9 passed`）、Python 语法检查、前端生产构建和 Git 差异检查。
 
-当前版本：**v2.8.3** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.3) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.4** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.4) · [查看完整更新日志](CHANGELOG.md)
 
 ## v2.8.3 界面与文档体验优化
 
@@ -415,7 +415,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
 
 
 
