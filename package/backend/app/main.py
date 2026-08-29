@@ -19,7 +19,7 @@ for stream in (sys.stdout, sys.stderr):
 # 先导入 config 以便加载环境变量
 from app.config import settings
 from app.database import init_db
-from app.routes import admin, auth, prompts, optimization
+from app.routes import prompts, optimization
 from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
 from app.models.models import CustomPrompt, User
@@ -60,30 +60,10 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 
         return response
 
-# 检查默认密钥 - 仅警告，不退出（允许开发环境使用）
-if settings.SECRET_KEY == "your-secret-key-change-this-in-production":
-    print("\n" + "="*60)
-    print("[WARNING] 安全警告: 检测到默认 SECRET_KEY!")
-    print("="*60)
-    print("生产环境必须修改 SECRET_KEY,否则 JWT token 可被伪造!")
-    print("请在 .env 文件中设置强密钥:")
-    print("  python -c \"import secrets; print(secrets.token_urlsafe(32))\"")
-    print("="*60 + "\n")
-    # 仅警告,不强制退出 (开发环境可能需要)
-
-if settings.ADMIN_PASSWORD == "admin123":
-    print("\n" + "="*60)
-    print("[WARNING] 安全警告: 检测到默认管理员密码!")
-    print("="*60)
-    print("生产环境必须修改 ADMIN_PASSWORD!")
-    print("请在 .env 文件中设置强密码 (建议12位以上)")
-    print("="*60 + "\n")
-    # 仅警告,不强制退出 (开发环境可能需要)
-
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降重与文档结构保留",
-    version="2.8.3"
+    version="2.8.8"
 )
 
 # 添加 Gzip 压缩中间件以减少响应体积
@@ -102,8 +82,6 @@ app.add_middleware(
 )
 
 # 注册路由（添加 /api 前缀，与 backend/app/main.py 保持一致）
-app.include_router(admin.router, prefix="/api")
-app.include_router(auth.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
 app.include_router(optimization.router, prefix="/api")
 app.include_router(word_formatter_router, prefix="/api")
@@ -184,7 +162,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 学术文本优化系统 API",
-        "version": "2.8.7",
+        "version": "2.8.8",
         "docs": "/docs"
     }
 

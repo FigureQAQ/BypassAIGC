@@ -3,10 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 
-const WelcomePage = lazy(() => import('./pages/WelcomePage'));
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
 const SessionDetailPage = lazy(() => import('./pages/SessionDetailPage'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const WordFormatterPage = lazy(() => import('./pages/WordFormatterPage'));
 const SpecGeneratorPage = lazy(() => import('./pages/SpecGeneratorPage'));
 const ArticlePreprocessorPage = lazy(() => import('./pages/ArticlePreprocessorPage'));
@@ -20,17 +18,6 @@ const PageLoader = () => (
     </div>
   </div>
 );
-
-const ProtectedRoute = ({ children }) => {
-  const authToken = localStorage.getItem('authToken');
-  const cardKey = localStorage.getItem('cardKey');
-  
-  if (!authToken && !cardKey) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-};
 
 function App() {
   return (
@@ -62,63 +49,19 @@ function App() {
       
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<WelcomePage />} />
-          <Route path="/access/:cardKey" element={<WelcomePage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/" element={<Navigate to="/article-preprocessor" replace />} />
         
-        <Route
-          path="/workspace"
-          element={
-            <ProtectedRoute>
-              <WorkspacePage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/workspace" element={<WorkspacePage />} />
         
-        <Route
-          path="/session/:sessionId"
-          element={
-            <ProtectedRoute>
-              <SessionDetailPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/session/:sessionId" element={<SessionDetailPage />} />
 
-        <Route
-          path="/word-formatter"
-          element={
-            <ProtectedRoute>
-              <WordFormatterPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/word-formatter" element={<WordFormatterPage />} />
 
-        <Route
-          path="/spec-generator"
-          element={
-            <ProtectedRoute>
-              <SpecGeneratorPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/spec-generator" element={<SpecGeneratorPage />} />
 
-        <Route
-          path="/article-preprocessor"
-          element={
-            <ProtectedRoute>
-              <ArticlePreprocessorPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/article-preprocessor" element={<ArticlePreprocessorPage />} />
 
-        <Route
-          path="/format-checker"
-          element={
-            <ProtectedRoute>
-              <FormatCheckerPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/format-checker" element={<FormatCheckerPage />} />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

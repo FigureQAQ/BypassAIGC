@@ -337,11 +337,6 @@ const WordFormatterPage = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('cardKey');
-    navigate('/');
-  };
-
   const handleSelectSavedSpec = (spec) => {
     setCustomSpecJson(spec.spec_json);
     setSelectedSpec('_custom_');
@@ -397,12 +392,6 @@ const WordFormatterPage = () => {
                 <span className="hidden sm:inline">降低 AIGC 率</span>
               </Link>
 
-              <button
-                onClick={handleLogout}
-                className="text-ios-red text-[17px] hover:opacity-70 transition-opacity font-normal"
-              >
-                退出
-              </button>
             </div>
           </div>
         </div>

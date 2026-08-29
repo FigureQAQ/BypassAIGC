@@ -77,8 +77,8 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_PER_USER: int = 3
     DEFAULT_USAGE_LIMIT: int = 1
     SEGMENT_SKIP_THRESHOLD: int = 15
-    AUTO_CREATE_LOCAL_USER: bool = False
-    LOCAL_ACCESS_KEY: Optional[str] = None
+    AUTO_CREATE_LOCAL_USER: bool = True
+    LOCAL_ACCESS_KEY: Optional[str] = "local-use"
 
     # Word Formatter 文件上传限制 (MB)，0 表示无限制
     MAX_UPLOAD_FILE_SIZE_MB: int = 0
@@ -111,16 +111,6 @@ class Settings(BaseSettings):
     # 思考模式配置
     THINKING_MODE_ENABLED: bool = False
     THINKING_MODE_EFFORT: str = "low"  # 思考强度: none, low, medium, high, xhigh
-    
-    # JWT 密钥
-    SECRET_KEY: str = "your-secret-key-change-this-in-production"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    USER_TOKEN_EXPIRE_HOURS: int = 24
-    
-    # 管理员账户
-    ADMIN_USERNAME: str = "admin"
-    ADMIN_PASSWORD: str = "admin123"
     
     class Config:
         env_file = get_env_file_path()

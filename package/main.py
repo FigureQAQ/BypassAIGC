@@ -63,7 +63,7 @@ import uvicorn
 # 导入后端应用组件
 from app.config import reload_settings, settings
 from app.database import init_db
-from app.routes import admin, auth, prompts, optimization
+from app.routes import prompts, optimization
 from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
 from app.models.models import CustomPrompt, User
@@ -76,23 +76,6 @@ from app.services.ai_service import (
 
 def warn_insecure_defaults():
     """配置加载完成后提示不安全的默认值。"""
-    if settings.SECRET_KEY == "your-secret-key-change-this-in-production":
-        print("\n" + "="*60)
-        print("[WARNING] 安全警告: 检测到默认 SECRET_KEY!")
-        print("="*60)
-        print("生产环境必须修改 SECRET_KEY,否则 JWT token 可被伪造!")
-        print(f"请在 {ENV_FILE} 文件中设置强密钥:")
-        print("  使用命令生成: python -c \"import secrets; print(secrets.token_urlsafe(32))\"")
-        print("="*60 + "\n")
-
-    if settings.ADMIN_PASSWORD == "admin123":
-        print("\n" + "="*60)
-        print("[WARNING] 安全警告: 检测到默认管理员密码!")
-        print("="*60)
-        print("生产环境必须修改 ADMIN_PASSWORD!")
-        print(f"请在 {ENV_FILE} 文件中设置强密码 (建议12位以上)")
-        print("="*60 + "\n")
-
 # 创建 FastAPI 应用
 app = FastAPI(
     title="AI 学术文本优化系统",
@@ -389,16 +372,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.3", "docs": "/docs"}
-    
-    @app.get("/admin")
-    @app.get("/admin/{path:path}")
-    async def serve_admin(path: str = ""):
-        """服务管理后台页面"""
-        index_file = os.path.join(STATIC_DIR, 'index.html')
-        if os.path.exists(index_file):
-            return FileResponse(index_file)
-        return {"error": "Admin page not found"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.8", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
@@ -478,9 +452,7 @@ def open_browser(port: int, access_key: str = ""):
 def create_sample_env():
     """创建示例 .env 文件（如果不存在）"""
     if not os.path.exists(ENV_FILE):
-        local_access_key = f"local-{secrets.token_urlsafe(12)}"
-        secret_key = secrets.token_urlsafe(48)
-        admin_password = secrets.token_urlsafe(18)
+        local_access_key = "local-use"
         sample_content = f"""# AI 学术写作助手配置文件
 # 设置以下 API 配置后重新启动即可使用
 OPENAI_API_KEY=your-api-key-here
@@ -515,14 +487,6 @@ THINKING_MODE_EFFORT=low
 HISTORY_COMPRESSION_THRESHOLD=5000
 COMPRESSION_MODEL=gpt-5
 
-# JWT 密钥
-SECRET_KEY={secret_key}
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
-
-# 管理员账户
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD={admin_password}
 DEFAULT_USAGE_LIMIT=0
 SEGMENT_SKIP_THRESHOLD=15
 """
@@ -530,7 +494,6 @@ SEGMENT_SKIP_THRESHOLD=15
             f.write(sample_content)
         print(f"✅ 已创建示例配置文件: {ENV_FILE}")
         print("   请编辑 OPENAI_API_KEY、OPENAI_BASE_URL 和模型名称，然后重新启动")
-        print(f"   管理员密码: {admin_password}")
 
 
 def main():
@@ -548,7 +511,6 @@ def main():
     host = settings.SERVER_HOST
     
     print(f"\n📍 服务地址: http://{host}:{port}")
-    print(f"📍 管理后台: http://{host}:{port}/admin")
     print(f"📍 API 文档: http://{host}:{port}/docs")
     print("\n按 Ctrl+C 停止服务")
     print("="*60 + "\n")

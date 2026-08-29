@@ -37,12 +37,7 @@ export const requestWithFallback = async (method, url, data = undefined, config 
 // 请求拦截器
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    const cardKey = localStorage.getItem('cardKey');
+    const cardKey = localStorage.getItem('cardKey') || 'local-use';
     if (cardKey) {
       config.params = {
         ...config.params,
@@ -62,51 +57,9 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    const url = error.config?.url || '';
-    const isAuthRequest = url.includes('/auth/login') || url.includes('/admin/login') || url.includes('/admin/verify-token');
-    if (error.response?.status === 401 && !isAuthRequest) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('username');
-      localStorage.removeItem('displayName');
-      localStorage.removeItem('cardKey');
-      window.location.href = '/';
-    }
     return Promise.reject(error);
   }
 );
-
-// Auth API
-export const authAPI = {
-  login: (username, password) =>
-    api.post('/auth/login', { username, password }, {
-      timeout: 15000,
-    }),
-  getMe: () => api.get('/auth/me'),
-};
-
-// Admin API
-export const adminAPI = {
-  generateKeys: (data, password) =>
-    api.post('/admin/generate-keys', data, {
-      params: { admin_password: password },
-    }),
-  listUsers: (password) =>
-    api.get('/admin/users', {
-      params: { admin_password: password },
-    }),
-  deleteUser: (userId, password) =>
-    api.delete(`/admin/users/${userId}`, {
-      params: { admin_password: password },
-    }),
-  stopSession: (sessionId, password) =>
-    api.post(`/admin/sessions/${sessionId}/stop`, null, {
-      params: { admin_password: password },
-    }),
-  toggleUserActive: (userId, password) =>
-    api.put(`/admin/users/${userId}/toggle-active`, null, {
-      params: { admin_password: password },
-    }),
-};
 
 // Prompts API
 export const promptsAPI = {
@@ -174,7 +127,7 @@ export const optimizationAPI = {
       timeout: 15000, // 15秒超时
     }),
   getStreamUrl: (sessionId) => {
-    const cardKey = localStorage.getItem('cardKey');
+    const cardKey = localStorage.getItem('cardKey') || 'local-use';
     const baseUrl = api.defaults.baseURL || '/api';
     return `${baseUrl}/optimization/sessions/${sessionId}/stream?card_key=${cardKey}`;
   },
@@ -241,14 +194,14 @@ export const wordFormatterAPI = {
 
   // Download
   getDownloadUrl: (jobId) => {
-    const cardKey = localStorage.getItem('cardKey');
+    const cardKey = localStorage.getItem('cardKey') || 'local-use';
     const baseUrl = api.defaults.baseURL || '/api';
     return `${baseUrl}/word-formatter/jobs/${jobId}/download?card_key=${cardKey}`;
   },
 
   // SSE stream URL
   getStreamUrl: (jobId) => {
-    const cardKey = localStorage.getItem('cardKey');
+    const cardKey = localStorage.getItem('cardKey') || 'local-use';
     const baseUrl = api.defaults.baseURL || '/api';
     return `${baseUrl}/word-formatter/jobs/${jobId}/stream?card_key=${cardKey}`;
   },
@@ -285,7 +238,7 @@ export const wordFormatterAPI = {
 
   // Preprocess stream URL
   getPreprocessStreamUrl: (jobId) => {
-    const cardKey = localStorage.getItem('cardKey');
+    const cardKey = localStorage.getItem('cardKey') || 'local-use';
     const baseUrl = api.defaults.baseURL || '/api';
     return `${baseUrl}/word-formatter/preprocess/${jobId}/stream?card_key=${cardKey}`;
   },

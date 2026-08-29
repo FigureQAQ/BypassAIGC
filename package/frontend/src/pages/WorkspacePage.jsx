@@ -383,12 +383,6 @@ const WorkspacePage = () => {
     }
   }, [inputMode, text, selectedFile, processingMode, isSubmitting, loadSessions]);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('cardKey');
-    localStorage.removeItem('authToken');
-    navigate('/');
-  }, [navigate]);
-
   const handleStopSession = useCallback(async () => {
     if (!activeSession || isStopping) {
       return;
@@ -524,12 +518,6 @@ const WorkspacePage = () => {
                 </div>
               )}
               
-              <button
-                onClick={handleLogout}
-                className="text-ios-red text-[17px] hover:opacity-70 transition-opacity font-normal"
-              >
-                退出
-              </button>
             </div>
           </div>
         </div>
