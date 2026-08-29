@@ -24,7 +24,11 @@ from app.word_formatter.routes import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
 from app.models.models import CustomPrompt, User
 from app.database import SessionLocal
-from app.services.ai_service import get_default_polish_prompt, get_default_enhance_prompt
+from app.services.ai_service import (
+    ensure_system_prompts,
+    get_default_polish_prompt,
+    get_default_enhance_prompt,
+)
 
 
 # 响应缓存头中间件 - 优化浏览器缓存
@@ -117,6 +121,7 @@ async def startup_event():
     # 创建系统默认提示词
     db = SessionLocal()
     try:
+        ensure_system_prompts(db)
         # 检查是否已存在系统提示词
         polish_prompt = db.query(CustomPrompt).filter(
             CustomPrompt.is_system.is_(True),

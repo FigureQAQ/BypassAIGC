@@ -4,6 +4,8 @@ import re
 from openai import AsyncOpenAI, PermissionDeniedError, AuthenticationError, RateLimitError
 from app.config import settings
 
+SYSTEM_PROMPT_REVISION = "2026-08-29"
+
 
 # 不可重试的错误类型 - 这些错误不应该通过降级重试来解决
 NON_RETRYABLE_ERRORS = (
@@ -931,6 +933,47 @@ def get_emotion_polish_prompt() -> str:
 
 """
 
+def ensure_system_prompts(db) -> None:
+    """Create missing system prompts and refresh them after a prompt revision."""
+    from app.models.models import CustomPrompt, SystemSetting
+
+    revision = db.query(SystemSetting).filter(
+        SystemSetting.key == "system_prompt_revision"
+    ).first()
+    should_refresh = revision is None or revision.value != SYSTEM_PROMPT_REVISION
+
+    specs = (
+        ("polish", "默认润色提示词", get_default_polish_prompt),
+        ("enhance", "默认增强提示词", get_default_enhance_prompt),
+    )
+    for stage, name, factory in specs:
+        prompt = db.query(CustomPrompt).filter(
+            CustomPrompt.is_system.is_(True),
+            CustomPrompt.stage == stage,
+        ).first()
+        if prompt is None:
+            db.add(CustomPrompt(
+                name=name,
+                stage=stage,
+                content=factory(),
+                is_default=True,
+                is_system=True,
+            ))
+        elif should_refresh:
+            prompt.content = factory()
+            prompt.name = name
+
+    if revision is None:
+        db.add(SystemSetting(
+            key="system_prompt_revision",
+            value=SYSTEM_PROMPT_REVISION,
+        ))
+    elif should_refresh:
+        revision.value = SYSTEM_PROMPT_REVISION
+
+    db.commit()
+
+
 def get_compression_prompt() -> str:
     """获取压缩提示词"""
     return """你的任务是压缩历史会话内容,提取关键信息以减少token使用。
@@ -945,8 +988,6 @@ def get_compression_prompt() -> str:
 - 这个压缩内容仅作为历史上下文,不会出现在最终论文中
 - 压缩比例应该至少达到50%
 - 只返回压缩后的内容,不要添加说明，不要附加任何解释、注释或标签"""
-
-
 
 
 
