@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.8**（2026-08-29）
+当前版本：**v2.8.10**（2026-08-29）
 
 ## 主要功能
 
@@ -24,6 +24,11 @@
 - 移除前端认证令牌和登录失效跳转逻辑，所有请求使用本地访问身份完成任务关联。
 - 打包启动入口不再注册 `/api/auth/*`、`/api/admin/*` 路由，也不再生成管理员密码配置。
 - 后端与前端版本号统一为 `2.8.8`。
+
+## v2.8.10 修复
+
+- 修复旧版本数据库只有随机本地卡密时，新版固定使用 `local-use` 导致“无效的卡密”的问题。
+- 启动时自动确保 `local-use` 本地身份存在，并兼容旧的本地访问身份。
 
 ## 快速开始
 

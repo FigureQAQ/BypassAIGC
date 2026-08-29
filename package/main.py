@@ -162,19 +162,23 @@ async def startup_event():
             )
             db.add(enhance_prompt)
 
-        if settings.AUTO_CREATE_LOCAL_USER and settings.LOCAL_ACCESS_KEY:
-            local_user = db.query(User).filter(
-                User.card_key == settings.LOCAL_ACCESS_KEY
-            ).first()
-            if not local_user:
-                db.add(User(
-                    card_key=settings.LOCAL_ACCESS_KEY,
-                    access_link=f"/access/{settings.LOCAL_ACCESS_KEY}",
-                    display_name="本地用户",
-                    is_active=True,
-                    usage_limit=0,
-                    usage_count=0,
-                ))
+        if settings.AUTO_CREATE_LOCAL_USER:
+            local_access_keys = {"local-use"}
+            if settings.LOCAL_ACCESS_KEY:
+                local_access_keys.add(settings.LOCAL_ACCESS_KEY)
+            for local_access_key in local_access_keys:
+                local_user = db.query(User).filter(
+                    User.card_key == local_access_key
+                ).first()
+                if not local_user:
+                    db.add(User(
+                        card_key=local_access_key,
+                        access_link=f"/access/{local_access_key}",
+                        display_name="本地用户",
+                        is_active=True,
+                        usage_limit=0,
+                        usage_count=0,
+                    ))
         
         db.commit()
     finally:
@@ -370,7 +374,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.8", "docs": "/docs"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.10", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
