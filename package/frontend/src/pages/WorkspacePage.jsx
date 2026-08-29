@@ -589,8 +589,9 @@ const WorkspacePage = () => {
                   <p className="font-semibold mb-1 text-ios-blue">当前模式说明</p>
                   <p className="text-gray-700 leading-relaxed">
                     {processingMode === 'paper_polish' && '仅降低 AIGC 率，优化表达并降低文本 AI 痕迹。'}
-                    {processingMode === 'paper_enhance' && '直接进行降重，改写表达并降低重复率。'}
-                    {processingMode === 'paper_polish_enhance' && '先降低 AIGC 率，再自动进行降重，两阶段处理。'}
+                    {processingMode === 'paper_enhance' && '直接改写表达，降低文本重复率。'}
+                    {processingMode === 'paper_polish_enhance' && '先降低 AIGC 率，再降低重复率，两阶段处理。'}
+                    {processingMode === 'emotion_polish' && '仅进行语言润色，改善表达流畅度，不执行降 AIGC 率或降重复率。'}
                   </p>
                 </div>
               </div>
@@ -613,7 +614,8 @@ const WorkspacePage = () => {
                   {[
                     { id: 'paper_polish', title: '降低 AIGC 率', desc: '优化表达，降低 AI 痕迹' },
                     { id: 'paper_enhance', title: '降低重复率', desc: '改写表达，降低重复率' },
-                    { id: 'paper_polish_enhance', title: '降低 AIGC 率 + 降重', desc: '先降低 AI 痕迹，再进行降重' }
+                    { id: 'paper_polish_enhance', title: '降低 AIGC 率 + 降低重复率', desc: '先降低 AI 痕迹，再降低重复率' },
+                    { id: 'emotion_polish', title: '仅润色', desc: '改善语言表达，不执行降 AIGC 或降重复率' }
                   ].map((mode) => (
                     <label
                       key={mode.id}
@@ -777,8 +779,8 @@ const WorkspacePage = () => {
                   const session = currentActiveSessionData;
                   const getStageName = (stage) => {
                     if (stage === 'polish') return '降低 AIGC 率';
-                    if (stage === 'emotion_polish') return '自然表达';
-                    if (stage === 'enhance') return '降重';
+                    if (stage === 'emotion_polish') return '仅润色';
+                    if (stage === 'enhance') return '降低重复率';
                     return stage;
                   };
                   return (

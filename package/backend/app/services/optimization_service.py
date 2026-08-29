@@ -11,7 +11,7 @@ from app.models.models import (
 from app.services.ai_service import (
     AIService, split_text_into_segments,
     count_chinese_characters, count_text_length, get_default_polish_prompt,
-    get_default_enhance_prompt, get_emotion_polish_prompt, get_compression_prompt
+    get_default_enhance_prompt, get_simple_polish_prompt, get_compression_prompt
 )
 from app.services.concurrency import concurrency_manager
 from app.services.stream_manager import stream_manager
@@ -56,7 +56,7 @@ class OptimizationService:
                 base_url=self.session_obj.enhance_base_url or settings.ENHANCE_BASE_URL
             )
             
-            # 感情文章润色服务
+            # 仅润色服务，复用润色模型配置
             self.emotion_service = AIService(
                 model=self.session_obj.emotion_model or settings.POLISH_MODEL,
                 api_key=self.session_obj.emotion_api_key or settings.POLISH_API_KEY,
@@ -202,7 +202,7 @@ class OptimizationService:
         
         # 获取AI服务
         if stage == "emotion_polish":
-            ai_service = self.emotion_service
+            ai_service = self.polish_service
         elif stage == "polish":
             ai_service = self.polish_service
         else:  # enhance
@@ -316,7 +316,7 @@ class OptimizationService:
                     if stage == "polish":
                         response = await ai_service.polish_text(input_text, prompt, history, stream=use_stream)
                     elif stage == "emotion_polish":
-                        response = await ai_service.polish_emotion_text(input_text, prompt, history, stream=use_stream)
+                        response = await ai_service.polish_text(input_text, prompt, history, stream=use_stream)
                     else:  # enhance
                         response = await ai_service.enhance_text(input_text, prompt, history, stream=use_stream)
                     
@@ -461,7 +461,7 @@ class OptimizationService:
     def _get_prompt(self, stage: str) -> str:
         """获取提示词，优先使用当前用户设置为默认的自定义提示词。"""
         if stage == "emotion_polish":
-            return get_emotion_polish_prompt()
+            return get_simple_polish_prompt()
 
         uid = self.session_obj.user_id
         if uid is not None:

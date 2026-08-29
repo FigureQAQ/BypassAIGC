@@ -59,7 +59,7 @@ class OptimizationCreate(BaseModel):
     """创建优化任务"""
     original_text: str
     processing_mode: str = Field(default='paper_polish_enhance',
-                                  description='处理模式: paper_polish, paper_enhance, paper_polish_enhance, emotion_polish')
+                                  description='处理模式: paper_polish（降低 AIGC 率）, paper_enhance（降低重复率）, paper_polish_enhance（同时降低 AIGC 率和重复率）, emotion_polish（仅润色）')
     polish_config: Optional[ModelConfig] = None
     enhance_config: Optional[ModelConfig] = None
     emotion_config: Optional[ModelConfig] = None
