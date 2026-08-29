@@ -81,6 +81,10 @@ const HighlightedText = memo(({ originalText, modifiedText }) => {
 
 HighlightedText.displayName = 'HighlightedText';
 
+const getSourceExportFormat = (sourceType) => (
+  ['docx', 'pdf', 'md'].includes(sourceType) ? sourceType : 'txt'
+);
+
 const SessionDetailPage = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -182,6 +186,7 @@ const SessionDetailPage = () => {
       const response = await optimizationAPI.getSessionDetail(sessionId);
       setSession(response.data);
       setSegments(response.data.segments || []);
+      setExportFormat(getSourceExportFormat(response.data.source_type));
     } catch (error) {
       toast.error('加载会话详情失败');
       navigate('/workspace');
@@ -632,17 +637,17 @@ const SessionDetailPage = () => {
                 </label>
                 <select
                   value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-100 rounded-lg text-[15px] border-none focus:ring-0"
+                  disabled
+                  className="w-full px-3 py-2 bg-gray-100 rounded-lg text-[15px] border-none focus:ring-0 disabled:cursor-not-allowed"
                 >
-                  <option value="txt">文本文件 (.txt)</option>
-                  <option value="md">Markdown 文档 (.md)</option>
-                  <option value="docx">
+                  {exportFormat === 'txt' && <option value="txt">文本文件 (.txt)</option>}
+                  {exportFormat === 'md' && <option value="md">Markdown 文档 (.md)</option>}
+                  {exportFormat === 'docx' && <option value="docx">
                     {session.source_type === 'docx' && session.preserve_format_available
                       ? 'Word文档 (.docx) - 保留原格式'
                       : 'Word文档 (.docx) - 普通格式'}
-                  </option>
-                  <option value="pdf">PDF文件 (.pdf) - 文本重排</option>
+                  </option>}
+                  {exportFormat === 'pdf' && <option value="pdf">PDF文件 (.pdf) - 文本重排</option>}
                 </select>
               </div>
             </div>

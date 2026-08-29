@@ -478,8 +478,9 @@ async def export_session(
         OptimizationSegment.session_id == session.id
     ).order_by(OptimizationSegment.segment_index).all()
 
+    source_export_format = session.source_type if session.source_type in {"docx", "pdf", "md"} else "txt"
     try:
-        export_result = build_export(session, segments, confirmation.export_format)
+        export_result = build_export(session, segments, source_export_format)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

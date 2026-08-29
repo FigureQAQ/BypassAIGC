@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.14**（2026-08-29）
+当前版本：**v2.8.15**（2026-08-29）
 
 ## 主要功能
 
@@ -13,6 +13,8 @@
 - 多种输入：支持直接粘贴文本，以及上传 `.docx`、`.pdf`、`.txt` 和 `.md` 文件。
 - 多种输出：支持文本结果预览、处理状态实时更新，以及按原格式下载可用结果。
 - 四种处理模式：可单独降低 AIGC 率、单独降低重复率、同时降低两项，或仅进行语言润色。
+- 进度预览：实时显示当前处理阶段、完成百分比、段落位置和处理状态。
+- 原格式导出：文本输出为 `.txt`，Markdown 输出为 `.md`，Word 输出为 `.docx`，PDF 输出为 `.pdf`；Word 和 Markdown 尽量保留原文档结构。
 - API 配置：用户在页面中输入 API Key、Base URL 和模型后即可使用。
 - 配置记忆：API 配置保存在当前浏览器的 `localStorage` 中，下次打开无需重复配置。
 - 本地运行：后端默认监听 `9800` 端口，适合个人电脑或局域网环境使用。
@@ -64,6 +66,12 @@
 
 - 新增“仅润色”模式，仅改善语言表达和流畅度，不执行降低 AIGC 率或降低重复率处理。
 - 保留原有三种处理模式及其处理逻辑。
+
+## v2.8.15 变更
+
+- 增加实时进度预览，显示当前处理阶段、进度百分比和段落处理位置。
+- 导出时自动按照源文件类型选择输出格式，避免文档被导出为不匹配的格式。
+- Word 和 Markdown 输入继续使用保格式导出逻辑；PDF 使用 PDF 输出，纯文本使用 TXT 输出。
 
 ## 快速开始
 
