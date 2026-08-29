@@ -3,13 +3,15 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-## Maintenance update (2026-08-29)
+## v2.8.4 运行稳定性与文档维护
 
-- System prompts are versioned and refreshed automatically at startup when the bundled prompt revision changes.
-- The source entry point and packaged entry point use the same prompt initialization flow.
-- `mistune` is explicitly included in both backend and packaging dependency lists.
-- The admin API request interval fallback is aligned with the runtime default of `1` second.
-- Verified with backend tests (`9 passed`), Python compilation, frontend production build, and `git diff --check`.
+当前发布版本：**v2.8.4**
+
+- 系统提示词增加版本标识；内置提示词更新后，服务启动时会自动同步系统提示词。
+- 源码启动入口与打包版启动入口统一使用同一套提示词初始化逻辑。
+- 在后端依赖和打包依赖中明确声明 `mistune`，确保文档格式化模块可正常安装。
+- 管理后台的 API 请求间隔默认值与运行时配置统一为 `1` 秒。
+- 本版本已通过后端测试（`9 passed`）、Python 语法检查、前端生产构建和 Git 差异检查。
 
 当前版本：**v2.8.3** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.3) · [查看完整更新日志](CHANGELOG.md)
 
@@ -413,8 +415,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
-
 
 
 
