@@ -3,6 +3,14 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
+## Maintenance update (2026-08-29)
+
+- System prompts are versioned and refreshed automatically at startup when the bundled prompt revision changes.
+- The source entry point and packaged entry point use the same prompt initialization flow.
+- `mistune` is explicitly included in both backend and packaging dependency lists.
+- The admin API request interval fallback is aligned with the runtime default of `1` second.
+- Verified with backend tests (`9 passed`), Python compilation, frontend production build, and `git diff --check`.
+
 当前版本：**v2.8.3** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.3) · [查看完整更新日志](CHANGELOG.md)
 
 ## v2.8.3 界面与文档体验优化
@@ -405,7 +413,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
 
 
 
