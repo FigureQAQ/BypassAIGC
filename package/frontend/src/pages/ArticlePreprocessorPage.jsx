@@ -44,6 +44,9 @@ const ArticlePreprocessorPage = () => {
   const [showConfig, setShowConfig] = useState(false);
   const [chunkParagraphs, setChunkParagraphs] = useState(40);
   const [chunkChars, setChunkChars] = useState(8000);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('userApiKey') || '');
+  const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem('userBaseUrl') || 'https://api.deepseek.com');
+  const [model, setModel] = useState(() => localStorage.getItem('userModel') || 'deepseek-v4-flash');
 
   // Job state
   const [currentJobId, setCurrentJobId] = useState(null);
@@ -80,6 +83,12 @@ const ArticlePreprocessorPage = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('userApiKey', apiKey);
+    localStorage.setItem('userBaseUrl', baseUrl);
+    localStorage.setItem('userModel', model);
+  }, [apiKey, baseUrl, model]);
 
   const loadUsage = async () => {
     try {
@@ -163,11 +172,17 @@ const ArticlePreprocessorPage = () => {
         response = await wordFormatterAPI.preprocessFile(file, {
           chunkParagraphs,
           chunkChars,
+          apiKey,
+          baseUrl,
+          model,
         });
       } else {
         response = await wordFormatterAPI.preprocessText(text, {
           chunkParagraphs,
           chunkChars,
+          apiKey,
+          baseUrl,
+          model,
         });
       }
 
@@ -685,6 +700,44 @@ const ArticlePreprocessorPage = () => {
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">建议范围：6000-10000 字符。</p>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      API Key
+                    </label>
+                    <input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="输入后会保存在当前浏览器"
+                      autoComplete="off"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      API Base URL
+                    </label>
+                    <input
+                      type="url"
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      placeholder="https://api.deepseek.com"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      模型名称
+                    </label>
+                    <input
+                      type="text"
+                      value={model}
+                      onChange={(e) => setModel(e.target.value)}
+                      placeholder="deepseek-v4-flash"
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">API 配置会自动保存，下次打开无需重复输入。</p>
                   </div>
                 </div>
               )}

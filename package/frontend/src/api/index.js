@@ -259,6 +259,9 @@ export const wordFormatterAPI = {
       text,
       chunk_paragraphs: options.chunkParagraphs || 40,
       chunk_chars: options.chunkChars || 8000,
+      api_key: options.apiKey || null,
+      base_url: options.baseUrl || null,
+      model: options.model || null,
     }, {
       timeout: 60000,
     }),
@@ -267,6 +270,9 @@ export const wordFormatterAPI = {
   preprocessFile: (file, options = {}) => {
     const formData = new FormData();
     formData.append('file', file);
+    if (options.apiKey) formData.append('api_key', options.apiKey);
+    if (options.baseUrl) formData.append('base_url', options.baseUrl);
+    if (options.model) formData.append('model', options.model);
     return api.post('/word-formatter/preprocess/file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       params: {

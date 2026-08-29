@@ -19,7 +19,7 @@
 - 统一页面标题、流程步骤、文件上传、参数配置、任务状态和结果统计等文案为中文。
 - 保留文章预处理的任务轮询、SSE 状态更新、导出和失败重试逻辑。
 
-当前版本：**v2.8.6** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.6) · [查看完整更新日志](CHANGELOG.md)
+当前版本：**v2.8.7** · [查看 Release](https://github.com/FigureQAQ/BypassAIGC/releases/tag/v2.8.7) · [查看完整更新日志](CHANGELOG.md)
 
 ## v2.8.3 界面与文档体验优化
 
@@ -299,6 +299,7 @@ SEGMENT_SKIP_THRESHOLD=15
 - **双阶段优化**: 降低 AIGC 率 + 降重
 - **智能分段**: 自动识别标题，跳过短段落
 - **文档提交**: 默认上传 Word（.docx），也支持 TXT（.txt）、PDF（.pdf）、Markdown（.md/.markdown）和短文本粘贴
+- 文章预处理页面支持用户输入自己的 OpenAI 兼容 API，配置会保存在当前浏览器，下次使用时自动带入，无需重复配置。
 - **多格式导出**: 优化结果可导出为 TXT、Markdown、Word 和 PDF
 - **Word 保格式输出**: Word 文档导出时保留原文档结构，仅替换被优化的正文段落文字
 - **Word 范围控制**: Word 文档仅修改摘要、正文、致谢中的正文段落，标题、图片、表格、目录、参考文献、附录、图表题注和关键词保持不变
@@ -421,7 +422,6 @@ git push origin v2.8.0
 Creative Commons (CC BY-NC-SA 4.0)
 
 [![Star History Chart](https://api.star-history.com/svg?repos=uhwr/BypassAIGC&type=Date)](https://star-history.com/#uhwr/BypassAIGC)
-
 
 
 

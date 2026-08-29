@@ -12,9 +12,9 @@ from datetime import datetime
 from typing import List, Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
@@ -124,6 +124,7 @@ class UsageInfoResponse(BaseModel):
 # Preprocess Request/Response Models
 class PreprocessRequest(BaseModel):
     """Request for text preprocessing."""
+    model_config = ConfigDict(extra="allow")
     text: str = Field(..., min_length=10, description="原始文章文本")
     chunk_paragraphs: int = Field(40, ge=10, le=100, description="每块最大段落数")
     chunk_chars: int = Field(8000, ge=2000, le=15000, description="每块最大字符数")
@@ -270,12 +271,16 @@ def increment_usage(user: User, db: Session) -> None:
     db.commit()
 
 
-def get_ai_service() -> AIService:
+def get_ai_service(
+    api_key: Optional[str] = None,
+    base_url: Optional[str] = None,
+    model: Optional[str] = None,
+) -> AIService:
     """Get AI service instance for word formatting."""
     return AIService(
-        model=settings.POLISH_MODEL,
-        api_key=settings.POLISH_API_KEY,
-        base_url=settings.POLISH_BASE_URL,
+        model=model or settings.POLISH_MODEL,
+        api_key=api_key or settings.POLISH_API_KEY or settings.OPENAI_API_KEY,
+        base_url=base_url or settings.POLISH_BASE_URL or settings.OPENAI_BASE_URL,
     )
 
 
@@ -765,7 +770,11 @@ async def preprocess_text(
         preprocess_config=preprocess_config,
     )
 
-    ai_service = get_ai_service()
+    ai_service = get_ai_service(
+        api_key=getattr(request, "api_key", None),
+        base_url=getattr(request, "base_url", None),
+        model=getattr(request, "model", None),
+    )
 
     async def run_job():
         await job_manager.run_job(job.job_id, ai_service)
@@ -786,6 +795,9 @@ async def preprocess_file(
     file: UploadFile = File(...),
     chunk_paragraphs: int = Query(40, ge=10, le=100),
     chunk_chars: int = Query(8000, ge=2000, le=15000),
+    api_key: Optional[str] = Form(None),
+    base_url: Optional[str] = Form(None),
+    model: Optional[str] = Form(None),
     background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db)
 ):
@@ -848,7 +860,7 @@ async def preprocess_file(
         preprocess_config=preprocess_config,
     )
 
-    ai_service = get_ai_service()
+    ai_service = get_ai_service(api_key=api_key, base_url=base_url, model=model)
 
     async def run_job():
         await job_manager.run_job(job.job_id, ai_service)
