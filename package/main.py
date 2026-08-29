@@ -110,8 +110,6 @@ async def add_no_cache_headers(request: Request, call_next):
     return response
 
 # 注册 API 路由（添加 /api 前缀，与 backend/app/main.py 保持一致）
-app.include_router(admin.router, prefix="/api")
-app.include_router(auth.router, prefix="/api")
 app.include_router(prompts.router, prefix="/api")
 app.include_router(optimization.router, prefix="/api")
 app.include_router(word_formatter_router, prefix="/api")

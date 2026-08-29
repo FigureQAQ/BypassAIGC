@@ -115,6 +115,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = get_env_file_path()
         case_sensitive = True
+        extra = "ignore"
 
 
 # 加载 exe 目录下的 .env 文件
