@@ -21,6 +21,13 @@ from app.config import settings
 MAX_ERROR_MESSAGE_LENGTH = 500
 
 
+def _nonnegative_number(value, default: float = 0.0) -> float:
+    try:
+        return max(float(value), 0.0)
+    except (TypeError, ValueError):
+        return default
+
+
 class OptimizationService:
     """优化处理服务"""
     
@@ -63,12 +70,41 @@ class OptimizationService:
                 base_url=self.session_obj.emotion_base_url or settings.POLISH_BASE_URL
             )
             
-            # 压缩服务
-            self.compression_service = AIService(
-                model=settings.COMPRESSION_MODEL,
-                api_key=settings.COMPRESSION_API_KEY or settings.OPENAI_API_KEY,
-                base_url=settings.COMPRESSION_BASE_URL or settings.OPENAI_BASE_URL
+            # 历史摘要压缩仅在超过阈值时使用，优先复用本次任务的 API 配置。
+            invalid_keys = {"pwd", "your-api-key-here", "replace-with-your-api-key"}
+            compression_api_key = next(
+                (
+                    value for value in (
+                        self.session_obj.polish_api_key,
+                        self.session_obj.enhance_api_key,
+                        self.session_obj.emotion_api_key,
+                        settings.COMPRESSION_API_KEY,
+                        settings.OPENAI_API_KEY,
+                    )
+                    if value and value.strip().lower() not in invalid_keys
+                ),
+                None,
             )
+            compression_base_url = (
+                settings.COMPRESSION_BASE_URL
+                or self.session_obj.polish_base_url
+                or self.session_obj.enhance_base_url
+                or self.session_obj.emotion_base_url
+                or settings.OPENAI_BASE_URL
+            )
+            compression_model = (
+                settings.COMPRESSION_MODEL
+                or self.session_obj.polish_model
+                or self.session_obj.enhance_model
+                or self.session_obj.emotion_model
+            )
+            self.compression_service = None
+            if compression_api_key and compression_base_url:
+                self.compression_service = AIService(
+                    model=compression_model,
+                    api_key=compression_api_key,
+                    base_url=compression_base_url
+                )
             
             print(f"[INFO] 所有 AI 服务初始化成功，会话: {self.session_obj.session_id}")
             
@@ -228,18 +264,21 @@ class OptimizationService:
                 # 标题段落不参与历史上下文
                 continue
             if stage == "polish" and segment.polished_text:
+                history.append({"role": "user", "content": segment.original_text})
                 history.append({"role": "assistant", "content": segment.polished_text})
                 total_chars += count_chinese_characters(segment.polished_text)
             elif stage == "emotion_polish" and segment.polished_text:
+                history.append({"role": "user", "content": segment.original_text})
                 history.append({"role": "assistant", "content": segment.polished_text})
                 total_chars += count_chinese_characters(segment.polished_text)
             elif stage == "enhance" and segment.enhanced_text:
+                history.append({"role": "user", "content": segment.polished_text or segment.original_text})
                 history.append({"role": "assistant", "content": segment.enhanced_text})
                 total_chars += count_chinese_characters(segment.enhanced_text)
         
         print(f"[STAGE] Loaded {len(history)} history messages from segments[:start_index={start_index}]", flush=True)
         
-        skip_threshold = max(settings.SEGMENT_SKIP_THRESHOLD, 0)
+        skip_threshold = _nonnegative_number(settings.SEGMENT_SKIP_THRESHOLD)
 
         # 获取处理模式，用于正确计算进度
         processing_mode = self.session_obj.processing_mode or 'paper_polish_enhance'
@@ -352,11 +391,12 @@ class OptimizationService:
                 await self._record_change(segment, input_text, output_text, stage)
                 
                 # 更新历史会话 - 只添加AI的回复内容
+                history.append({"role": "user", "content": input_text})
                 history.append({"role": "assistant", "content": output_text})
                 total_chars += count_chinese_characters(output_text)
 
                 # 检查是否需要压缩历史 - 基于字符数阈值
-                if total_chars > settings.HISTORY_COMPRESSION_THRESHOLD:
+                if total_chars > settings.HISTORY_COMPRESSION_THRESHOLD and self.compression_service:
                     print(f"\n[HISTORY COMPRESS] Triggering compression, Stage: {stage}", flush=True)
                     print(f"[HISTORY COMPRESS] Before: {total_chars} chars, {len(history)} messages", flush=True)
                     
@@ -402,7 +442,7 @@ class OptimizationService:
                 raise
 
     async def _wait_for_request_slot(self):
-        request_interval = max(settings.API_REQUEST_INTERVAL, 0)
+        request_interval = _nonnegative_number(settings.API_REQUEST_INTERVAL)
         now = time.monotonic()
         if self._last_api_request_started_at is not None and request_interval > 0:
             elapsed = now - self._last_api_request_started_at
@@ -433,9 +473,9 @@ class OptimizationService:
         return any(keyword in error_message for keyword in retryable_keywords)
 
     async def _run_with_retry(self, segment_index: int, stage: str, task):
-        max_retries = max(settings.API_MAX_RETRIES, 0)
-        base_delay = max(settings.API_RETRY_BASE_DELAY, 0)
-        max_delay = max(settings.API_RETRY_MAX_DELAY, base_delay)
+        max_retries = int(_nonnegative_number(settings.API_MAX_RETRIES))
+        base_delay = _nonnegative_number(settings.API_RETRY_BASE_DELAY)
+        max_delay = max(_nonnegative_number(settings.API_RETRY_MAX_DELAY), base_delay)
 
         for attempt in range(max_retries + 1):
             try:

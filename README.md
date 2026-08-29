@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.16**（2026-08-29）
+当前版本：**v2.8.17**（2026-08-29）
 
 ## 主要功能
 
@@ -18,6 +18,32 @@
 - API 配置：用户在页面中输入 API Key、Base URL 和模型后即可使用。
 - 配置记忆：API 配置保存在当前浏览器的 `localStorage` 中，下次打开无需重复配置。
 - 本地运行：后端默认监听 `9800` 端口，适合个人电脑或局域网环境使用。
+
+### 工作环境
+
+程序所在目录即为工作环境，首次启动会自动创建：
+
+- `BypassAIGC.exe`：软件程序。
+- `.env`：环境变量和默认 API 配置。
+- `ai_polish.db`：本地任务和使用记录数据库。
+- `logs/`：运行日志和脱敏错误报告。
+- `input/`：用户提交的文本和文档副本。
+- `output/`：预处理结果和格式化结果副本。
+
+错误报告默认只保存到本地，不会自动上传文档内容或 API Key。若确有需要，可在 `.env` 中配置可信的私有 `ERROR_REPORT_URL`，并将 `AUTO_UPLOAD_ERROR_LOGS` 设置为 `true`；上报内容会先脱敏。
+
+### 错误码
+
+- `E1001`：API 配置缺失。
+- `E1002`：API Key 无效或认证失败。
+- `E1003`：API 请求失败。
+- `E1004`：API 请求超时。
+- `E2001`：输入参数无效。
+- `E2002`：文件类型不支持。
+- `E2003`：文件读取或解析失败。
+- `E3001`：任务不存在。
+- `E3002`：任务执行失败。
+- `E9001`：服务器内部错误。
 
 ### 处理模式
 
@@ -72,6 +98,13 @@
 - 增加实时进度预览，显示当前处理阶段、进度百分比和段落处理位置。
 - 导出时自动按照源文件类型选择输出格式，避免文档被导出为不匹配的格式。
 - Word 和 Markdown 输入继续使用保格式导出逻辑；PDF 使用 PDF 输出，纯文本使用 TXT 输出。
+
+## v2.8.17 修复
+
+- 修复会话详情页不显示任务进度条的问题，增加持续进度轮询和完成后自动刷新。
+- 修复历史上下文消息结构不完整导致部分段落重复或被续写的问题。
+- 修复流式结果前端重复拼接的问题，优先使用服务端累计文本。
+- 修复 API 请求间隔配置被读取为字符串时引发的任务失败。
 
 ## v2.8.16 修复
 

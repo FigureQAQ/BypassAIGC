@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   ArrowLeft, Download, FileText, GitCompare,
-  CheckCircle, AlertCircle, Shield, Square
+  CheckCircle, AlertCircle, Shield, Square, Clock3
 } from 'lucide-react';
 import { optimizationAPI } from '../api';
 
@@ -141,10 +141,39 @@ const SessionDetailPage = () => {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    let timer = null;
+    let disposed = false;
+
+    const pollProgress = async () => {
+      try {
+        const response = await optimizationAPI.getSessionProgress(sessionId);
+        if (disposed) return;
+        setSession((previous) => previous ? { ...previous, ...response.data } : previous);
+        if (response.data.status === 'processing' || response.data.status === 'queued') {
+          timer = window.setTimeout(pollProgress, 1000);
+        } else {
+          await loadSessionDetail();
+          await loadChanges();
+        }
+      } catch (error) {
+        if (!disposed) timer = window.setTimeout(pollProgress, 2000);
+      }
+    };
+
+    pollProgress();
+    return () => {
+      disposed = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [sessionId]);
+
   const handleStreamUpdate = (data) => {
     setSegments(prevSegments => {
       const newSegments = [...prevSegments];
-      const segmentIndex = data.segment_index;
+      const segmentIndex = newSegments.findIndex(
+        (item) => item.segment_index === data.segment_index
+      );
       
       // 确保段落存在
       if (!newSegments[segmentIndex]) {
@@ -157,10 +186,11 @@ const SessionDetailPage = () => {
       const segment = { ...newSegments[segmentIndex] };
       
       // 更新内容
+      const nextText = data.full_text || `${segment.polished_text || ''}${data.content || ''}`;
       if (data.stage === 'polish' || data.stage === 'emotion_polish') {
-        segment.polished_text = (segment.polished_text || "") + data.content;
+        segment.polished_text = nextText;
       } else if (data.stage === 'enhance') {
-        segment.enhanced_text = (segment.enhanced_text || "") + data.content;
+        segment.enhanced_text = data.full_text || `${segment.enhanced_text || ''}${data.content || ''}`;
       }
       
       // 标记为处理中（如果尚未标记）
@@ -232,11 +262,6 @@ const SessionDetailPage = () => {
   };
 
   const handleExport = async (acknowledged) => {
-    if (!acknowledged) {
-      toast.error('请确认学术诚信承诺');
-      return;
-    }
-
     try {
       const response = await optimizationAPI.exportSession(sessionId, {
         session_id: sessionId,
@@ -321,6 +346,10 @@ const SessionDetailPage = () => {
     );
   }
 
+  const rawProgress = Number(session.progress || 0);
+  const progressPercent = Math.round(Math.max(0, Math.min(100, rawProgress <= 1 ? rawProgress * 100 : rawProgress)));
+  const isActive = session.status === 'processing' || session.status === 'queued';
+
   return (
     <div className="min-h-screen bg-ios-background">
       {/* 顶部导航 - iOS Glass Style */}
@@ -357,8 +386,8 @@ const SessionDetailPage = () => {
                   </div>
                   
                   <button
-                    onClick={() => setShowExportModal(true)}
-                    className="flex items-center gap-1.5 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
+                    onClick={() => handleExport(true)}
+                    className="session-export-button flex items-center gap-1.5 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
                   >
                     <Download className="w-4 h-4" />
                     导出
@@ -396,6 +425,39 @@ const SessionDetailPage = () => {
 
       {/* 主内容 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {(isActive || session.status === 'failed' || session.status === 'stopped') && (
+          <div className={`mb-6 rounded-2xl border p-4 ${
+            session.status === 'failed'
+              ? 'border-red-200 bg-red-50'
+              : 'border-blue-100 bg-blue-50'
+          }`}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <div className="text-[14px] font-semibold text-gray-800">当前任务</div>
+                <div className="mt-1 text-[12px] text-gray-500">
+                  {session.current_stage || '正在处理'} · {session.current_position || 0}/{session.total_segments || '—'} 段
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-[18px] font-semibold text-ios-blue">
+                <Clock3 className="w-4 h-4" />
+                {progressPercent}%
+              </div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+              <div
+                className={`h-full rounded-full transition-[width] duration-300 ${
+                  session.status === 'failed' ? 'bg-red-400' : 'bg-ios-blue'
+                }`}
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            {session.status === 'failed' && session.error_message && (
+              <div className="mt-3 break-words text-[12px] leading-relaxed text-red-600">
+                {session.error_message}
+              </div>
+            )}
+          </div>
+        )}
         
         {(session.source_type !== 'text' || session.word_count > 0) && (
           <div className="bg-white rounded-2xl shadow-ios p-4 mb-6 border border-gray-100">
@@ -469,7 +531,7 @@ const SessionDetailPage = () => {
         <div className="space-y-6">
           {activeTab === 'result' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-2 lg:order-2">
                 <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <h3 className="text-[15px] font-semibold text-black ml-2">
@@ -529,7 +591,7 @@ const SessionDetailPage = () => {
                 </div>
               </div>
               
-              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)]">
+              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-1 lg:order-1">
                 <div className="p-3 bg-gray-50 border-b border-gray-100">
                   <h3 className="text-[15px] font-semibold text-gray-500 ml-2">
                     原始文本

@@ -5,7 +5,7 @@ import {
   ArrowLeft, ArrowRight, FileText, Upload, Play, Download,
   CheckCircle, AlertCircle, Loader2, Settings, Eye, Edit3,
   RefreshCw, FileUp, X, ChevronDown, ChevronUp,
-  Hash, Type, List, BookOpen, Quote, Table, Image, Code
+  Hash, Type, List, BookOpen, Quote, Table, Image, Code, EyeOff
 } from 'lucide-react';
 import { wordFormatterAPI } from '../api';
 
@@ -32,6 +32,8 @@ const ArticlePreprocessorPage = () => {
   const fileInputRef = useRef(null);
   const eventSourceRef = useRef(null);
   const retryTimeoutRef = useRef(null);
+  const autoTestTimerRef = useRef(null);
+  const resultPollRef = useRef(null);
   const mountedRef = useRef(false);
 
   // Input mode and content
@@ -42,9 +44,16 @@ const ArticlePreprocessorPage = () => {
 
   // Configuration
   const [showConfig, setShowConfig] = useState(false);
+  const [showAdvancedConfig, setShowAdvancedConfig] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
   const [chunkParagraphs, setChunkParagraphs] = useState(40);
   const [chunkChars, setChunkChars] = useState(8000);
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('userApiKey') || '');
+  const [apiKey, setApiKey] = useState(() => {
+    const savedKey = localStorage.getItem('userApiKey') || '';
+    return ['pwd', 'your-api-key-here', 'replace-with-your-api-key'].includes(savedKey.trim().toLowerCase())
+      ? ''
+      : savedKey;
+  });
   const [baseUrl, setBaseUrl] = useState(() => {
     const savedBaseUrl = localStorage.getItem('userBaseUrl');
     return !savedBaseUrl || savedBaseUrl === 'https://api.openai.com/v1' || savedBaseUrl === 'http://IP:PORT/v1'
@@ -57,6 +66,17 @@ const ArticlePreprocessorPage = () => {
       ? 'deepseek-v4-flash'
       : savedModel;
   });
+  const currentApiSignature = () => JSON.stringify({ apiKey, baseUrl, model });
+  const [apiTestStatus, setApiTestStatus] = useState(() => (
+    localStorage.getItem('validatedApiConfig') === JSON.stringify({ apiKey, baseUrl, model })
+      ? 'success'
+      : 'idle'
+  ));
+  const [apiTestMessage, setApiTestMessage] = useState(() => (
+    localStorage.getItem('validatedApiConfig') === JSON.stringify({ apiKey, baseUrl, model })
+      ? '已应用上次验证成功的 API 配置'
+      : '尚未验证当前 API 配置'
+  ));
 
   // Job state
   const [currentJobId, setCurrentJobId] = useState(null);
@@ -87,6 +107,10 @@ const ArticlePreprocessorPage = () => {
         clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = null;
       }
+      if (resultPollRef.current) {
+        clearInterval(resultPollRef.current);
+        resultPollRef.current = null;
+      }
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -99,6 +123,61 @@ const ArticlePreprocessorPage = () => {
     localStorage.setItem('userBaseUrl', baseUrl);
     localStorage.setItem('userModel', model);
   }, [apiKey, baseUrl, model]);
+
+  const handleTestApi = async () => {
+    if (!apiKey.trim() || !baseUrl.trim() || !model.trim()) {
+      setApiTestStatus('error');
+      setApiTestMessage('请先填写 API Key、Base URL 和模型名称');
+      return;
+    }
+    setApiTestStatus('testing');
+    setApiTestMessage('正在发送测试请求…');
+    try {
+      const response = await wordFormatterAPI.testPreprocessConnection({
+        api_key: apiKey.trim(),
+        base_url: baseUrl.trim(),
+        model: model.trim(),
+      });
+      setApiTestStatus('success');
+      setApiTestMessage(response.data.message || 'API 已连接，配置可以使用');
+      localStorage.setItem('validatedApiConfig', currentApiSignature());
+    } catch (error) {
+      setApiTestStatus('error');
+      const code = error.response?.data?.code;
+      const detail = error.response?.data?.detail || 'API 测试失败，请检查配置';
+      setApiTestMessage(`${code ? `[${code}] ` : ''}${detail}`);
+      localStorage.removeItem('validatedApiConfig');
+    }
+  };
+
+  useEffect(() => {
+    if (autoTestTimerRef.current) {
+      clearTimeout(autoTestTimerRef.current);
+    }
+    if (!apiKey.trim() || !baseUrl.trim() || !model.trim()) {
+      return undefined;
+    }
+    if (localStorage.getItem('validatedApiConfig') === currentApiSignature()) {
+      setApiTestStatus('success');
+      setApiTestMessage('已应用上次验证成功的 API 配置');
+      return undefined;
+    }
+    autoTestTimerRef.current = setTimeout(() => {
+      handleTestApi();
+    }, 800);
+    return () => {
+      if (autoTestTimerRef.current) {
+        clearTimeout(autoTestTimerRef.current);
+        autoTestTimerRef.current = null;
+      }
+    };
+  }, [apiKey, baseUrl, model]);
+
+  const markApiConfigChanged = () => {
+    setApiTestStatus('idle');
+    setApiTestMessage('配置已修改，请重新测试连接');
+    localStorage.removeItem('validatedApiConfig');
+  };
 
   const loadUsage = async () => {
     try {
@@ -169,7 +248,6 @@ const ArticlePreprocessorPage = () => {
       toast.error('请输入文本内容');
       return;
     }
-
     try {
       setIsSubmitting(true);
       setJobStatus('pending');
@@ -199,14 +277,30 @@ const ArticlePreprocessorPage = () => {
       const jobId = response.data.job_id;
       setCurrentJobId(jobId);
       startSSE(jobId);
+      startResultPolling(jobId);
       toast.success('预处理任务已开始');
     } catch (error) {
       console.error('Start preprocess failed:', error);
-      toast.error(error.response?.data?.detail || '启动预处理失败');
+      const code = error.response?.data?.code;
+      const detail = error.response?.data?.detail || '启动预处理失败';
+      toast.error(`${code ? `[${code}] ` : ''}${detail}`);
       setJobStatus(null);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const startResultPolling = (jobId) => {
+    if (resultPollRef.current) {
+      clearInterval(resultPollRef.current);
+    }
+    resultPollRef.current = setInterval(async () => {
+      const isTerminal = await fetchResult(jobId);
+      if (isTerminal && resultPollRef.current) {
+        clearInterval(resultPollRef.current);
+        resultPollRef.current = null;
+      }
+    }, 2000);
   };
 
   // SSE connection
@@ -323,10 +417,12 @@ const ArticlePreprocessorPage = () => {
           processedHash: response.data.processed_hash,
         });
         setJobStatus('completed');
+        return true;
       } else {
         // 浠诲姟澶辫触
         setJobStatus('failed');
         toast.error(response.data.error || '预处理失败');
+        return true;
       }
     } catch (error) {
       console.error('Fetch result failed:', error);
@@ -334,12 +430,14 @@ const ArticlePreprocessorPage = () => {
       if (status === 404) {
         toast.error('任务不存在或已过期');
         setJobStatus(null);
+        return true;
       } else if (status === 400) {
         console.log('Task is still running; retry later');
       } else {
         // 鍏朵粬閿欒
         console.error('鑾峰彇缁撴灉澶辫触:', error.response?.data?.detail || error.message);
       }
+      return false;
     }
   };
 
@@ -677,7 +775,18 @@ const ArticlePreprocessorPage = () => {
               >
                 <span className="flex items-center gap-2">
                   <Settings className="w-4 h-4" />
-                  高级配置
+                  API 与处理设置
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    apiTestStatus === 'success'
+                      ? 'bg-green-100 text-green-700'
+                      : apiTestStatus === 'error'
+                        ? 'bg-red-100 text-red-700'
+                        : apiTestStatus === 'testing'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {apiTestStatus === 'success' ? '已应用' : apiTestStatus === 'error' ? '连接失败' : apiTestStatus === 'testing' ? '测试中' : '待验证'}
+                  </span>
                 </span>
                 {showConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -685,44 +794,31 @@ const ArticlePreprocessorPage = () => {
                 <div className="px-4 pb-4 space-y-3 border-t">
                   <div className="pt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      每块最大段落数
-                    </label>
-                    <input
-                      type="number"
-                      value={chunkParagraphs}
-                      onChange={(e) => setChunkParagraphs(parseInt(e.target.value) || 40)}
-                      min={10}
-                      max={100}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">建议 30-50，过大可能导致 AI 识别不准</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      每块最大字符数
-                    </label>
-                    <input
-                      type="number"
-                      value={chunkChars}
-                      onChange={(e) => setChunkChars(parseInt(e.target.value) || 8000)}
-                      min={2000}
-                      max={20000}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">建议范围：6000-10000 字符。</p>
-                  </div>
-                  <div className="pt-2 border-t">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       API Key
                     </label>
-                    <input
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="输入后会保存在当前浏览器"
-                      autoComplete="off"
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={apiKey}
+                        onChange={(e) => {
+                          setApiKey(e.target.value);
+                          markApiConfigChanged();
+                        }}
+                        placeholder="请输入 API Key"
+                        autoComplete="off"
+                        className="w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey((visible) => !visible)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700"
+                        title={showApiKey ? '隐藏 API Key' : '显示 API Key'}
+                        aria-label={showApiKey ? '隐藏 API Key' : '显示 API Key'}
+                      >
+                        {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">输入完成后会自动测试连接并保存在当前浏览器。</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -731,7 +827,10 @@ const ArticlePreprocessorPage = () => {
                     <input
                       type="url"
                       value={baseUrl}
-                      onChange={(e) => setBaseUrl(e.target.value)}
+                      onChange={(e) => {
+                        setBaseUrl(e.target.value);
+                        markApiConfigChanged();
+                      }}
                       placeholder="https://api.deepseek.com"
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -743,11 +842,71 @@ const ArticlePreprocessorPage = () => {
                     <input
                       type="text"
                       value={model}
-                      onChange={(e) => setModel(e.target.value)}
+                      onChange={(e) => {
+                        setModel(e.target.value);
+                        markApiConfigChanged();
+                      }}
                       placeholder="deepseek-v4-flash"
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">API 配置会自动保存，下次打开无需重复输入。</p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleTestApi}
+                        disabled={apiTestStatus === 'testing'}
+                        className="px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50"
+                      >
+                        {apiTestStatus === 'testing' ? '测试中…' : '立即测试'}
+                      </button>
+                      {apiTestStatus !== 'idle' && (
+                        <span className={`text-sm ${apiTestStatus === 'success' ? 'text-green-600' : apiTestStatus === 'error' ? 'text-red-600' : 'text-gray-500'}`}>
+                          {apiTestMessage}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedConfig((visible) => !visible)}
+                      className="w-full flex items-center justify-between text-sm font-medium text-gray-600 hover:text-gray-900"
+                    >
+                      <span>高级处理参数</span>
+                      {showAdvancedConfig ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                    {showAdvancedConfig && (
+                      <div className="mt-3 space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            每块最大段落数
+                          </label>
+                          <input
+                            type="number"
+                            value={chunkParagraphs}
+                            onChange={(e) => setChunkParagraphs(parseInt(e.target.value) || 40)}
+                            min={10}
+                            max={100}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">建议 30-50，过大可能导致 AI 识别不准。</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            每块最大字符数
+                          </label>
+                          <input
+                            type="number"
+                            value={chunkChars}
+                            onChange={(e) => setChunkChars(parseInt(e.target.value) || 8000)}
+                            min={2000}
+                            max={20000}
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">建议范围：6000-10000 字符。</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

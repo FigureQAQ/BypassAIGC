@@ -5,10 +5,6 @@ import './index.css';
 
 const WorkspacePage = lazy(() => import('./pages/WorkspacePage'));
 const SessionDetailPage = lazy(() => import('./pages/SessionDetailPage'));
-const WordFormatterPage = lazy(() => import('./pages/WordFormatterPage'));
-const SpecGeneratorPage = lazy(() => import('./pages/SpecGeneratorPage'));
-const ArticlePreprocessorPage = lazy(() => import('./pages/ArticlePreprocessorPage'));
-const FormatCheckerPage = lazy(() => import('./pages/FormatCheckerPage'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-app-shell">
@@ -49,21 +45,10 @@ function App() {
       
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/article-preprocessor" replace />} />
-        
-        <Route path="/workspace" element={<WorkspacePage />} />
-        
-        <Route path="/session/:sessionId" element={<SessionDetailPage />} />
-
-        <Route path="/word-formatter" element={<WordFormatterPage />} />
-
-        <Route path="/spec-generator" element={<SpecGeneratorPage />} />
-
-        <Route path="/article-preprocessor" element={<ArticlePreprocessorPage />} />
-
-        <Route path="/format-checker" element={<FormatCheckerPage />} />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Navigate to="/workspace" replace />} />
+          <Route path="/workspace" element={<WorkspacePage />} />
+          <Route path="/session/:sessionId" element={<SessionDetailPage />} />
+          <Route path="*" element={<Navigate to="/workspace" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

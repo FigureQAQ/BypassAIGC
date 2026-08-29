@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
+from datetime import datetime
 from dataclasses import dataclass
 from typing import List
 
@@ -76,11 +78,13 @@ def build_export(session: OptimizationSession, segments: List[OptimizationSegmen
 
 
 def _base_filename(session: OptimizationSession) -> str:
+    timestamp = (session.created_at or datetime.utcnow()).strftime("%Y%m%d_%H%M%S")
     if session.source_filename:
         stem = os.path.splitext(session.source_filename)[0].strip()
         if stem:
-            return f"{stem}_optimized"
-    return f"optimized_{session.session_id}"
+            safe_stem = re.sub(r'[<>:"/\\|?*]+', "_", stem).strip(" ._")
+            return f"{safe_stem}_{timestamp}"
+    return f"文本任务_{timestamp}"
 
 
 def _build_docx(session: OptimizationSession, segments: List[OptimizationSegment], final_text: str) -> bytes:

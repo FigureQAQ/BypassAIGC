@@ -47,6 +47,14 @@ def get_default_database_url():
     return f"sqlite:///{db_path}"
 
 
+def get_workspace_dir():
+    """获取统一工作目录。"""
+    configured = os.getenv("BYPASSAIGC_WORKSPACE_DIR")
+    if configured:
+        return os.path.abspath(os.path.expanduser(configured))
+    return get_exe_dir()
+
+
 class Settings(BaseSettings):
     # 服务器配置
     SERVER_HOST: str = "0.0.0.0"
@@ -54,12 +62,18 @@ class Settings(BaseSettings):
 
     # 数据库配置 - 默认使用 exe 同目录
     DATABASE_URL: str = get_default_database_url()
+    WORKSPACE_DIR: str = get_workspace_dir()
+    LOG_DIR: str = os.path.join(get_workspace_dir(), "logs")
+    INPUT_DIR: str = os.path.join(get_workspace_dir(), "input")
+    OUTPUT_DIR: str = os.path.join(get_workspace_dir(), "output")
+    ERROR_REPORT_URL: Optional[str] = None
+    AUTO_UPLOAD_ERROR_LOGS: bool = False
     
     # Redis 配置
     REDIS_URL: str = "redis://IP:6379/0"
     
     # OpenAI API 配置
-    OPENAI_API_KEY: str = "pwd"
+    OPENAI_API_KEY: Optional[str] = None
     OPENAI_BASE_URL: str = "https://api.deepseek.com"
     
     # 第一阶段模型配置 (论文润色)
@@ -103,7 +117,7 @@ class Settings(BaseSettings):
     STREAM_QUEUE_MAX_SIZE: int = 256  # 单个 SSE 连接最多缓存的消息数
 
     # API 请求起始时间的最小间隔（秒）
-    API_REQUEST_INTERVAL: int = 1
+    API_REQUEST_INTERVAL: float = 0.2
     API_MAX_RETRIES: int = 3
     API_RETRY_BASE_DELAY: int = 2
     API_RETRY_MAX_DELAY: int = 20
@@ -125,6 +139,8 @@ if os.path.exists(_env_path):
     load_dotenv(_env_path)
 
 settings = Settings()
+for _directory in (settings.LOG_DIR, settings.INPUT_DIR, settings.OUTPUT_DIR):
+    os.makedirs(_directory, exist_ok=True)
 
 
 def reload_settings():

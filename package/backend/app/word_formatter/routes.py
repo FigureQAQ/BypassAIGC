@@ -131,6 +131,13 @@ class PreprocessRequest(BaseModel):
     chunk_chars: int = Field(8000, ge=2000, le=15000, description="每块最大字符数")
 
 
+class ApiConnectionTestRequest(BaseModel):
+    """用户 API 连接测试请求。"""
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+
+
 class PreprocessJobResponse(BaseModel):
     """Response for preprocess job creation."""
     job_id: str
@@ -741,6 +748,49 @@ async def list_jobs(
 
 
 # ============ Preprocess API Endpoints ============
+
+@router.post("/preprocess/test-connection")
+async def test_preprocess_connection(
+    request: ApiConnectionTestRequest,
+    card_key: str,
+    db: Session = Depends(get_db),
+):
+    """使用当前页面配置执行一次最小模型请求，确认 API 可用。"""
+    get_current_user(card_key, db)
+    try:
+        ai_service = get_ai_service(
+            api_key=request.api_key,
+            base_url=request.base_url,
+            model=request.model,
+        )
+        response = await asyncio.wait_for(
+            ai_service.complete(
+                [
+                    {
+                        "role": "system",
+                        "content": "只回复：连接测试成功",
+                    },
+                    {
+                        "role": "user",
+                        "content": "连接测试",
+                    },
+                ],
+                temperature=0,
+                max_tokens=16,
+            ),
+            timeout=20,
+        )
+        return {
+            "success": bool(response and response.strip()),
+            "model": ai_service.model,
+            "base_url": ai_service.base_url,
+            "message": "API 已连接，配置可以用于预处理",
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="API 连接超时，请检查网络、Base URL 或代理设置")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"API 测试失败：{str(exc)}")
+
 
 @router.post("/preprocess/text", response_model=PreprocessJobResponse)
 async def preprocess_text(

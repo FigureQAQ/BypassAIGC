@@ -159,7 +159,7 @@ class ChangeLogResponse(BaseModel):
 class ExportConfirmation(BaseModel):
     """导出确认"""
     session_id: str
-    acknowledge_academic_integrity: bool
+    acknowledge_academic_integrity: bool = True
     export_format: str = Field(..., pattern="^(txt|md|docx|pdf)$")
 
 

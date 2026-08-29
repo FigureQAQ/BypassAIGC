@@ -12,6 +12,8 @@ import threading
 import time
 import signal
 import socket
+import atexit
+from datetime import datetime
 from typing import Optional
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
@@ -37,12 +39,59 @@ else:
     APP_DIR = os.path.dirname(os.path.abspath(__file__))
     STATIC_DIR = os.path.join(APP_DIR, 'static')
 
-# 设置工作目录为应用目录（确保数据库和配置文件在正确位置）
+# 应用目录同时作为统一工作环境，所有运行数据集中存放在这里
+WORKSPACE_DIR = APP_DIR
+LOG_DIR = os.path.join(WORKSPACE_DIR, 'logs')
+INPUT_DIR = os.path.join(WORKSPACE_DIR, 'input')
+OUTPUT_DIR = os.path.join(WORKSPACE_DIR, 'output')
+for directory in (LOG_DIR, INPUT_DIR, OUTPUT_DIR):
+    os.makedirs(directory, exist_ok=True)
+
+# 记录启动和运行日志，保留原有控制台行为
+LOG_FILE = os.path.join(LOG_DIR, f"bypassaigc-{datetime.now():%Y%m%d}.log")
+_original_stdout = sys.stdout
+_original_stderr = sys.stderr
+
+
+class _TeeStream:
+    def __init__(self, original, path):
+        self.original = original
+        self.file = open(path, 'a', encoding='utf-8', buffering=1)
+
+    def write(self, value):
+        if value:
+            try:
+                self.original.write(value)
+            except Exception:
+                pass
+            self.file.write(value)
+            self.file.flush()
+
+    def flush(self):
+        try:
+            self.original.flush()
+        except Exception:
+            pass
+        self.file.flush()
+
+    def isatty(self):
+        try:
+            return self.original.isatty()
+        except Exception:
+            return False
+
+
+sys.stdout = _TeeStream(_original_stdout, LOG_FILE)
+sys.stderr = _TeeStream(_original_stderr, LOG_FILE)
+atexit.register(lambda: (sys.stdout.file.close(), sys.stderr.file.close()))
+
+# 设置工作目录为应用目录（确保数据库、日志和配置文件在正确位置）
 os.chdir(APP_DIR)
 
 # 设置环境变量指向 exe 同目录的 .env 文件
 ENV_FILE = os.path.join(APP_DIR, '.env')
 DB_FILE = os.path.join(APP_DIR, 'ai_polish.db')
+os.environ.setdefault('BYPASSAIGC_WORKSPACE_DIR', WORKSPACE_DIR)
 
 # 加载环境变量
 if os.path.exists(ENV_FILE):
@@ -59,6 +108,7 @@ if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
 from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -78,6 +128,8 @@ from app.services.ai_service import (
     get_default_polish_prompt,
     get_default_enhance_prompt,
 )
+from app.diagnostics import create_error_report
+from app.error_codes import ErrorCode, code_for_status
 
 def warn_insecure_defaults():
     """配置加载完成后提示不安全的默认值。"""
@@ -85,8 +137,38 @@ def warn_insecure_defaults():
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降低重复率、仅润色与文档结构保留",
-    version="2.8.16"
+    version="2.8.17"
 )
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException):
+    code = code_for_status(exc.status_code, exc.detail)
+    create_error_report(code, exc.detail, endpoint=request.url.path, status_code=exc.status_code)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": code.value, "detail": str(exc.detail)},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_exception(request: Request, exc: RequestValidationError):
+    code = ErrorCode.INPUT_INVALID
+    create_error_report(code, exc, endpoint=request.url.path, status_code=422)
+    return JSONResponse(
+        status_code=422,
+        content={"code": code.value, "detail": "请求参数无效，请检查输入内容"},
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    code = ErrorCode.INTERNAL_ERROR
+    create_error_report(code, exc, endpoint=request.url.path, status_code=500)
+    return JSONResponse(
+        status_code=500,
+        content={"code": code.value, "detail": "服务器内部错误，请查看错误日志"},
+    )
 
 # 添加 Gzip 压缩中间件以减少响应体积
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -379,7 +461,7 @@ if os.path.exists(STATIC_DIR):
         index_file = os.path.join(STATIC_DIR, 'index.html')
         if os.path.exists(index_file):
             return FileResponse(index_file)
-        return {"message": "AI 文本优化系统 API", "version": "2.8.16", "docs": "/docs"}
+        return {"message": "AI 文本优化系统 API", "version": "2.8.17", "docs": "/docs"}
     
     @app.get("/workspace")
     @app.get("/workspace/{path:path}")
@@ -439,7 +521,7 @@ else:
         """根路径"""
         return {
             "message": "AI 论文润色增强系统 API",
-            "version": "2.8.16",
+            "version": "2.8.17",
             "docs": "/docs",
             "note": "静态文件目录不存在，仅 API 可用"
         }
@@ -448,7 +530,7 @@ else:
 def open_browser(port: int, access_key: str = ""):
     """延迟打开浏览器"""
     time.sleep(2)  # 等待服务器启动
-    url = f"http://localhost:{port}/article-preprocessor"
+    url = f"http://localhost:{port}/workspace"
     print(f"\n🌐 正在打开浏览器: {url}")
     webbrowser.open(url)
 

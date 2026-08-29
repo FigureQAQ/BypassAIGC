@@ -19,6 +19,16 @@ const fallbackApi = axios.create({
   timeout: 15000,
 });
 
+const getSavedModelConfig = () => {
+  const apiKey = localStorage.getItem('userApiKey')?.trim() || '';
+  const baseUrl = localStorage.getItem('userBaseUrl')?.trim() || 'https://api.deepseek.com';
+  const savedModel = localStorage.getItem('userModel')?.trim() || '';
+  const model = savedModel && !savedModel.toLowerCase().startsWith('gpt')
+    ? savedModel
+    : 'deepseek-v4-flash';
+  return { model, api_key: apiKey || null, base_url: baseUrl };
+};
+
 const shouldUseFallback = (error) => {
   return !error.response || error.code === 'ECONNABORTED';
 };
@@ -77,13 +87,27 @@ export const promptsAPI = {
 
 // Optimization API
 export const optimizationAPI = {
-  startOptimization: (data) => api.post('/optimization/start', data, {
+  startOptimization: (data) => api.post('/optimization/start', {
+    ...data,
+    polish_config: data.polish_config || getSavedModelConfig(),
+    enhance_config: data.enhance_config || getSavedModelConfig(),
+    emotion_config: data.emotion_config || getSavedModelConfig(),
+  }, {
     timeout: 60000, // 启动任务延长到60秒超时
   }),
   startOptimizationFile: (file, options = {}) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('processing_mode', options.processing_mode || 'paper_polish_enhance');
+    const savedConfig = getSavedModelConfig();
+    const modelConfig = {
+      api_key: options.apiKey?.trim() || savedConfig.api_key,
+      base_url: options.baseUrl?.trim() || savedConfig.base_url,
+      model: options.model?.trim() || savedConfig.model,
+    };
+    if (modelConfig.api_key) formData.append('api_key', modelConfig.api_key);
+    if (modelConfig.base_url) formData.append('base_url', modelConfig.base_url);
+    if (modelConfig.model) formData.append('model', modelConfig.model);
     return api.post('/optimization/start-file', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120000,
@@ -207,6 +231,10 @@ export const wordFormatterAPI = {
   },
 
   // Preprocess text
+  testPreprocessConnection: (data) =>
+    api.post('/word-formatter/preprocess/test-connection', data, {
+      timeout: 25000,
+    }),
   preprocessText: (text, options = {}) =>
     api.post('/word-formatter/preprocess/text', {
       text,

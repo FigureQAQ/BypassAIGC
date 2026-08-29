@@ -162,6 +162,9 @@ async def start_optimization_file(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     processing_mode: str = Form(default='paper_polish_enhance'),
+    api_key: str = Form(default=None),
+    base_url: str = Form(default=None),
+    model: str = Form(default=None),
     db: Session = Depends(get_db)
 ):
     """上传 Word/PDF 文档并开始优化任务"""
@@ -185,6 +188,15 @@ async def start_optimization_file(
         current_stage=initial_stage,
         status="queued",
         progress=0.0,
+        polish_model=model,
+        polish_api_key=api_key,
+        polish_base_url=base_url,
+        enhance_model=model,
+        enhance_api_key=api_key,
+        enhance_base_url=base_url,
+        emotion_model=model,
+        emotion_api_key=api_key,
+        emotion_base_url=base_url,
         source_type=ingestion.source_type,
         source_filename=ingestion.source_filename,
         source_mime_type=ingestion.source_mime_type,
@@ -454,12 +466,6 @@ async def export_session(
     db: Session = Depends(get_db)
 ):
     """导出优化结果"""
-    if not confirmation.acknowledge_academic_integrity:
-        raise HTTPException(
-            status_code=400,
-            detail="必须确认学术诚信承诺"
-        )
-    
     user = get_current_user(card_key, db)
     
     session = db.query(OptimizationSession).filter(

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+import re
+from pathlib import Path
 from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -33,6 +35,7 @@ from .preprocessor import (
     PreprocessProgress,
     PreprocessResult,
 )
+from app.config import settings
 
 
 class JobStatus(str, Enum):
@@ -87,6 +90,22 @@ class JobManager:
     Manages async document formatting jobs.
     """
 
+    @staticmethod
+    def _safe_name(value: str) -> str:
+        return re.sub(r"[^A-Za-z0-9._-]+", "_", value)[:120] or "document"
+
+    @classmethod
+    def _save_workspace_text(cls, directory: str, name: str, text: str) -> None:
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        (path / name).write_text(text or "", encoding="utf-8")
+
+    @classmethod
+    def _save_workspace_bytes(cls, directory: str, name: str, content: bytes) -> None:
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        (path / name).write_bytes(content or b"")
+
     def __init__(
         self,
         max_concurrent_jobs: int = 5,
@@ -127,6 +146,14 @@ class JobManager:
 
         self._jobs[job_id] = job
         self._job_locks[job_id] = asyncio.Lock()
+        input_name = self._safe_name(input_file_name or f"{job_id}.txt")
+        if not Path(input_name).suffix:
+            input_name = f"{input_name}.txt"
+        self._save_workspace_text(
+            settings.INPUT_DIR,
+            f"{job_id}_{input_name}",
+            input_text or "",
+        )
 
         print(f"[WORD-FORMATTER] 创建任务 job_id={job_id[:8]}... 类型={job_type.value}", flush=True)
         print(f"[WORD-FORMATTER] 用户ID: {user_id}", flush=True)
@@ -243,6 +270,11 @@ class JobManager:
             job.status = JobStatus.COMPLETED
             job.output_bytes = result.docx_bytes
             job.output_filename = self._generate_output_filename(job)
+            self._save_workspace_bytes(
+                settings.OUTPUT_DIR,
+                f"{job.job_id}_{self._safe_name(job.output_filename)}",
+                result.docx_bytes,
+            )
             print(f"[WORD-FORMATTER] [OK] 格式化任务完成 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 输出文件: {job.output_filename}", flush=True)
             print(f"[WORD-FORMATTER] 文件大小: {len(result.docx_bytes or b'')} 字节", flush=True)
@@ -285,6 +317,11 @@ class JobManager:
 
         if result.success:
             job.status = JobStatus.COMPLETED
+            self._save_workspace_text(
+                settings.OUTPUT_DIR,
+                f"{job.job_id}_preprocessed.txt",
+                result.marked_text,
+            )
             print(f"[WORD-FORMATTER] [OK] 预处理任务完成 job_id={job.job_id[:8]}...", flush=True)
             print(f"[WORD-FORMATTER] 段落数: {len(result.paragraphs)}", flush=True)
             print(f"[WORD-FORMATTER] 一致性校验: {'通过' if result.integrity_check_passed else '失败'}", flush=True)

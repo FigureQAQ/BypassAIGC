@@ -1,4 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -29,6 +31,8 @@ from app.services.ai_service import (
     get_default_polish_prompt,
     get_default_enhance_prompt,
 )
+from app.diagnostics import create_error_report
+from app.error_codes import ErrorCode, code_for_status
 
 
 # 响应缓存头中间件 - 优化浏览器缓存
@@ -63,8 +67,38 @@ class CacheControlMiddleware(BaseHTTPMiddleware):
 app = FastAPI(
     title="AI 学术文本优化系统",
     description="降低 AIGC 率、降低重复率、仅润色与文档结构保留",
-    version="2.8.16"
+    version="2.8.17"
 )
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException):
+    code = code_for_status(exc.status_code, exc.detail)
+    create_error_report(code, exc.detail, endpoint=request.url.path, status_code=exc.status_code)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": code.value, "detail": str(exc.detail)},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_validation_exception(request: Request, exc: RequestValidationError):
+    code = ErrorCode.INPUT_INVALID
+    create_error_report(code, exc, endpoint=request.url.path, status_code=422)
+    return JSONResponse(
+        status_code=422,
+        content={"code": code.value, "detail": "请求参数无效，请检查输入内容"},
+    )
+
+
+@app.exception_handler(Exception)
+async def handle_unexpected_exception(request: Request, exc: Exception):
+    code = ErrorCode.INTERNAL_ERROR
+    create_error_report(code, exc, endpoint=request.url.path, status_code=500)
+    return JSONResponse(
+        status_code=500,
+        content={"code": code.value, "detail": "服务器内部错误，请查看错误日志"},
+    )
 
 # 添加 Gzip 压缩中间件以减少响应体积
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -166,7 +200,7 @@ async def root():
     """根路径"""
     return {
         "message": "AI 学术文本优化系统 API",
-        "version": "2.8.16",
+        "version": "2.8.17",
         "docs": "/docs"
     }
 
