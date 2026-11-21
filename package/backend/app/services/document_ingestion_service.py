@@ -13,6 +13,7 @@ from app.word_formatter.utils.ooxml import DocxPackage
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NSMAP = {"w": W_NS}
+MARKDOWN_FENCE = re.compile(r" {0,3}(?:(`{3,})[^`]*|(~{3,}).*)")
 
 
 @dataclass
@@ -435,7 +436,7 @@ def _should_start_body_section(
 
 
 def _decode_text_content(content: bytes, label: str) -> str:
-    for encoding in ("utf-8-sig", "utf-8", "gbk"):
+    for encoding in ("utf-8", "gbk"):
         try:
             return content.decode(encoding)
         except UnicodeDecodeError:
@@ -444,8 +445,8 @@ def _decode_text_content(content: bytes, label: str) -> str:
 
 
 def _markdown_heading_text(raw: str) -> Optional[str]:
-    first_line = raw.strip().splitlines()[0] if raw.strip() else ""
-    match = re.match(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$", first_line)
+    first_line = raw.splitlines()[0] if raw else ""
+    match = re.match(r"^ {0,3}#{1,6}[ \t]+(.+?)\s*#*\s*$", first_line)
     if match:
         return match.group(1).strip()
     return None
@@ -456,8 +457,6 @@ def _markdown_block_kind(raw: str) -> str:
     lines = [line.rstrip() for line in stripped.splitlines() if line.strip()]
     if not stripped:
         return "blank"
-    if stripped.startswith(("```", "~~~")):
-        return "code_fence"
     if _markdown_heading_text(raw):
         return "heading"
     if stripped in {"---", "***", "___"}:
@@ -474,9 +473,10 @@ def _markdown_block_kind(raw: str) -> str:
 
 
 def _iter_markdown_blocks(text: str) -> List[Dict[str, Any]]:
-    lines = text.splitlines(keepends=True)
+    # Exclude the BOM from parsing while keeping offsets relative to the stored source.
+    position = 1 if text.startswith("\ufeff") else 0
+    lines = text[position:].splitlines(keepends=True)
     blocks: List[Dict[str, Any]] = []
-    position = 0
     index = 0
 
     while index < len(lines):
@@ -488,16 +488,17 @@ def _iter_markdown_blocks(text: str) -> List[Dict[str, Any]]:
             continue
 
         start = position
-        fence_match = re.match(r"^\s{0,3}(```|~~~)", line)
+        fence_match = MARKDOWN_FENCE.fullmatch(line.rstrip("\r\n"))
         if fence_match:
-            fence = fence_match.group(1)
+            fence = fence_match.group(1) or fence_match.group(2)
+            closing_fence = re.compile(rf" {{0,3}}{fence[0]}{{{len(fence)},}}[ \t]*")
             position += len(line)
             index += 1
             while index < len(lines):
                 current = lines[index]
                 position += len(current)
                 index += 1
-                if re.match(rf"^\s{{0,3}}{re.escape(fence)}\s*$", current):
+                if closing_fence.fullmatch(current.rstrip("\r\n")):
                     break
             raw = text[start:position]
             blocks.append({"raw": raw, "start": start, "end": position, "kind": "code_fence"})
@@ -514,7 +515,9 @@ def _iter_markdown_blocks(text: str) -> List[Dict[str, Any]]:
             current = lines[index]
             if not current.strip():
                 break
-            if position > start and (re.match(r"^\s{0,3}(```|~~~)", current) or _markdown_heading_text(current)):
+            if position > start and (
+                MARKDOWN_FENCE.fullmatch(current.rstrip("\r\n")) or _markdown_heading_text(current)
+            ):
                 break
             position += len(current)
             index += 1
@@ -529,7 +532,7 @@ def _markdown_plain_text(raw: str) -> str:
     heading = _markdown_heading_text(raw)
     if heading is not None:
         return heading
-    return re.sub(r"\s*\n\s*", " ", raw.strip()).strip()
+    return re.sub(r"\s*(?:\r\n|\r|\n)\s*", " ", raw.strip())
 
 
 def _is_markdown_protected_block(raw: str, kind: str, text: str) -> bool:
@@ -615,8 +618,7 @@ def ingest_txt(filename: str, content: bytes, mime_type: Optional[str] = None) -
 def ingest_markdown(filename: str, content: bytes, mime_type: Optional[str] = None) -> IngestionResult:
     text = _decode_text_content(content, "Markdown")
 
-    text = text.strip()
-    if not text:
+    if not text.removeprefix("\ufeff").strip():
         raise DocumentIngestionError("Markdown document is empty")
 
     markdown_blocks = _iter_markdown_blocks(text)

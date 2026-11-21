@@ -112,6 +112,7 @@ class SessionResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     completed_at: Optional[datetime] = None
+    elapsed_seconds: Optional[float] = None
     
     class Config:
         from_attributes = True
@@ -140,6 +141,7 @@ class ProgressUpdate(BaseModel):
     total_segments: int
     current_stage: str
     error_message: Optional[str] = None
+    elapsed_seconds: Optional[float] = None
 
 
 class ChangeLogResponse(BaseModel):

@@ -19,14 +19,14 @@ const fallbackApi = axios.create({
   timeout: 15000,
 });
 
+export const getSavedModel = () => (
+  localStorage.getItem('userModel')?.trim() || 'deepseek-v4-flash'
+);
+
 const getSavedModelConfig = () => {
   const apiKey = localStorage.getItem('userApiKey')?.trim() || '';
   const baseUrl = localStorage.getItem('userBaseUrl')?.trim() || 'https://api.deepseek.com';
-  const savedModel = localStorage.getItem('userModel')?.trim() || '';
-  const model = savedModel && !savedModel.toLowerCase().startsWith('gpt')
-    ? savedModel
-    : 'deepseek-v4-flash';
-  return { model, api_key: apiKey || null, base_url: baseUrl };
+  return { model: getSavedModel(), api_key: apiKey || null, base_url: baseUrl };
 };
 
 const shouldUseFallback = (error) => {
@@ -230,9 +230,13 @@ export const wordFormatterAPI = {
     return `${baseUrl}/word-formatter/jobs/${jobId}/stream?card_key=${cardKey}`;
   },
 
+  listModels: (data, signal) =>
+    api.post('/word-formatter/preprocess/models', data, { signal, timeout: 15000 }),
+
   // Preprocess text
-  testPreprocessConnection: (data) =>
+  testPreprocessConnection: (data, signal) =>
     api.post('/word-formatter/preprocess/test-connection', data, {
+      signal,
       timeout: 25000,
     }),
   preprocessText: (text, options = {}) =>

@@ -6,6 +6,8 @@ import {
   CheckCircle, AlertCircle, Shield, Square, Clock3
 } from 'lucide-react';
 import { optimizationAPI } from '../api';
+import { formatElapsed } from '../formatElapsed';
+import ThemeToggle from '../ThemeToggle';
 
 const buildHighlightedParts = (originalText = '', modifiedText = '') => {
   const original = Array.from(originalText || '');
@@ -70,7 +72,7 @@ const HighlightedText = memo(({ originalText, modifiedText }) => {
       {parts.map((part, index) => (
         <span
           key={index}
-          className={part.changed ? 'bg-yellow-100 text-black rounded px-0.5' : undefined}
+          className={part.changed ? 'bg-yellow-100 dark:bg-amber-900 text-black dark:text-slate-100 rounded px-0.5' : undefined}
         >
           {part.text}
         </span>
@@ -85,7 +87,7 @@ const getSourceExportFormat = (sourceType) => (
   ['docx', 'pdf', 'md'].includes(sourceType) ? sourceType : 'txt'
 );
 
-const SessionDetailPage = () => {
+const SessionDetailPage = ({ theme, onToggleTheme }) => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
@@ -337,57 +339,59 @@ const SessionDetailPage = () => {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-800 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">加载中...</p>
+          <p className="text-gray-600 dark:text-slate-300">加载中...</p>
         </div>
       </div>
     );
   }
 
   const rawProgress = Number(session.progress || 0);
-  const progressPercent = Math.round(Math.max(0, Math.min(100, rawProgress <= 1 ? rawProgress * 100 : rawProgress)));
+  const progressPercent = Math.floor(Math.max(0, Math.min(100, rawProgress)));
+  const elapsed = formatElapsed(session.elapsed_seconds);
   const isActive = session.status === 'processing' || session.status === 'queued';
 
   return (
-    <div className="min-h-screen bg-ios-background">
+    <div className="min-h-screen bg-ios-background dark:bg-slate-950">
       {/* 顶部导航 - iOS Glass Style */}
-      <nav className="bg-white/80 backdrop-blur-xl border-b border-ios-separator sticky top-0 z-50">
+      <nav className="bg-white/80 dark:bg-slate-800/90 backdrop-blur-xl border-b border-ios-separator dark:border-slate-700 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-[52px]">
+          <div className="flex justify-between items-center min-h-[52px] gap-2">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/workspace')}
-                className="flex items-center gap-1 text-ios-blue hover:opacity-70 transition-opacity -ml-2 px-2 py-1 rounded-lg"
+                className="flex items-center gap-1 text-ios-blue dark:text-blue-300 hover:opacity-70 transition-opacity -ml-2 px-2 py-1 rounded-lg"
               >
                 <ArrowLeft className="w-5 h-5" />
                 <span className="text-[17px] font-normal">返回</span>
               </button>
               
-              <div className="h-6 w-[1px] bg-gray-300 mx-1" />
+              <div className="h-6 w-[1px] bg-gray-300 dark:bg-slate-600 mx-1" />
 
               <div className="flex items-center gap-2">
-                <h1 className="text-[17px] font-semibold text-black">
+                <h1 className="text-[17px] font-semibold text-black dark:text-slate-100 whitespace-nowrap">
                   会话详情
                 </h1>
-                <span className="text-[13px] text-ios-gray font-normal">
+                <span className="hidden sm:inline text-[13px] text-ios-gray dark:text-slate-400 font-normal">
                   {new Date(session.created_at).toLocaleDateString()}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 sm:gap-3">
+              <ThemeToggle theme={theme} onToggleTheme={onToggleTheme} />
               {session.status === 'completed' && (
                 <>
-                  <div className="hidden sm:flex items-center gap-1.5 text-ios-green bg-green-50 px-2 py-1 rounded-md">
+                  <div className="hidden sm:flex items-center gap-1.5 text-ios-green dark:text-emerald-300 bg-green-50 dark:bg-emerald-950 px-2 py-1 rounded-md">
                     <CheckCircle className="w-4 h-4" />
                     <span className="text-[13px] font-medium">已完成</span>
                   </div>
                   
                   <button
                     onClick={() => handleExport(true)}
-                    className="session-export-button flex items-center gap-1.5 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
+                    className="flex items-center gap-1.5 bg-ios-blue hover:bg-blue-600 text-white font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
                   >
                     <Download className="w-4 h-4" />
                     导出
@@ -396,14 +400,14 @@ const SessionDetailPage = () => {
               )}
               
               {session.status === 'failed' && (
-                <div className="flex items-center gap-1.5 text-ios-red bg-red-50 px-2 py-1 rounded-md">
+                <div className="flex items-center gap-1.5 text-ios-red dark:text-red-300 bg-red-50 dark:bg-red-950 px-2 py-1 rounded-md">
                   <AlertCircle className="w-4 h-4" />
                   <span className="text-[13px] font-medium">处理失败</span>
                 </div>
               )}
 
               {session.status === 'stopped' && (
-                <div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
+                <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-300 bg-orange-50 dark:bg-orange-950 px-2 py-1 rounded-md">
                   <AlertCircle className="w-4 h-4" />
                   <span className="text-[13px] font-medium">已停止</span>
                 </div>
@@ -412,7 +416,7 @@ const SessionDetailPage = () => {
               {(session.status === 'processing' || session.status === 'queued') && (
                 <button
                   onClick={handleStop}
-                  className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
+                  className="flex items-center gap-1.5 bg-red-50 dark:bg-red-950 hover:bg-red-100 dark:hover:bg-red-900 text-red-600 dark:text-red-300 font-semibold py-1.5 px-4 rounded-full transition-all active:scale-[0.98] text-[15px]"
                 >
                   <Square className="w-4 h-4 fill-current" />
                   停止
@@ -425,25 +429,31 @@ const SessionDetailPage = () => {
 
       {/* 主内容 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {session.status === 'completed' && elapsed && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-gray-600 dark:text-slate-300">
+            <Clock3 size={16} aria-hidden="true" />处理用时 {elapsed}
+          </div>
+        )}
         {(isActive || session.status === 'failed' || session.status === 'stopped') && (
           <div className={`mb-6 rounded-2xl border p-4 ${
             session.status === 'failed'
-              ? 'border-red-200 bg-red-50'
-              : 'border-blue-100 bg-blue-50'
+              ? 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950'
+              : 'border-blue-100 dark:border-blue-900 bg-blue-50 dark:bg-blue-950'
           }`}>
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-[14px] font-semibold text-gray-800">当前任务</div>
-                <div className="mt-1 text-[12px] text-gray-500">
+                <div className="text-[14px] font-semibold text-gray-800 dark:text-slate-200">当前任务</div>
+                <div className="mt-1 text-[12px] text-gray-500 dark:text-slate-400">
                   {session.current_stage || '正在处理'} · {session.current_position || 0}/{session.total_segments || '—'} 段
+                  {isActive && elapsed && ` · 已用时 ${elapsed}`}
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 text-[18px] font-semibold text-ios-blue">
+              <div className="flex items-center gap-1.5 text-[18px] font-semibold text-ios-blue dark:text-blue-300">
                 <Clock3 className="w-4 h-4" />
                 {progressPercent}%
               </div>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80">
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/80 dark:bg-slate-800/90">
               <div
                 className={`h-full rounded-full transition-[width] duration-300 ${
                   session.status === 'failed' ? 'bg-red-400' : 'bg-ios-blue'
@@ -452,7 +462,7 @@ const SessionDetailPage = () => {
               />
             </div>
             {session.status === 'failed' && session.error_message && (
-              <div className="mt-3 break-words text-[12px] leading-relaxed text-red-600">
+              <div className="mt-3 break-words text-[12px] leading-relaxed text-red-600 dark:text-red-300">
                 {session.error_message}
               </div>
             )}
@@ -460,36 +470,36 @@ const SessionDetailPage = () => {
         )}
         
         {(session.source_type !== 'text' || session.word_count > 0) && (
-          <div className="bg-white rounded-2xl shadow-ios p-4 mb-6 border border-gray-100">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-ios p-4 mb-6 border border-gray-100 dark:border-slate-700">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="text-[11px] px-2 py-1 rounded-md bg-blue-50 text-ios-blue font-semibold">
+              <span className="text-[11px] px-2 py-1 rounded-md bg-blue-50 dark:bg-blue-950 text-ios-blue dark:text-blue-300 font-semibold">
                 {session.source_type === 'docx' ? 'Word 文档' : session.source_type === 'pdf' ? 'PDF 文档' : session.source_type === 'md' ? 'Markdown 文档' : '文本'}
               </span>
               {session.source_filename && (
-                <span className="text-[14px] font-semibold text-black">{session.source_filename}</span>
+                <span className="text-[14px] font-semibold text-black dark:text-slate-100">{session.source_filename}</span>
               )}
               {session.source_type === 'docx' && session.preserve_format_available && (
-                <span className="text-[11px] px-2 py-1 rounded-md bg-green-50 text-ios-green font-semibold">
+                <span className="text-[11px] px-2 py-1 rounded-md bg-green-50 dark:bg-emerald-950 text-ios-green dark:text-emerald-300 font-semibold">
                   保留标题、图片和表格，仅修改摘要、正文、致谢
                 </span>
               )}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[13px]">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-ios-gray mb-1">总字/词数</div>
-                <div className="font-semibold text-black">{session.word_count || 0}</div>
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                <div className="text-ios-gray dark:text-slate-400 mb-1">总字/词数</div>
+                <div className="font-semibold text-black dark:text-slate-100">{session.word_count || 0}</div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-ios-gray mb-1">中文字符</div>
-                <div className="font-semibold text-black">{session.chinese_char_count || 0}</div>
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                <div className="text-ios-gray dark:text-slate-400 mb-1">中文字符</div>
+                <div className="font-semibold text-black dark:text-slate-100">{session.chinese_char_count || 0}</div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-ios-gray mb-1">英文单词</div>
-                <div className="font-semibold text-black">{session.english_word_count || 0}</div>
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                <div className="text-ios-gray dark:text-slate-400 mb-1">英文单词</div>
+                <div className="font-semibold text-black dark:text-slate-100">{session.english_word_count || 0}</div>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-ios-gray mb-1">字符数</div>
-                <div className="font-semibold text-black">{session.char_count || session.original_char_count || 0}</div>
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3">
+                <div className="text-ios-gray dark:text-slate-400 mb-1">字符数</div>
+                <div className="font-semibold text-black dark:text-slate-100">{session.char_count || session.original_char_count || 0}</div>
               </div>
             </div>
           </div>
@@ -497,13 +507,13 @@ const SessionDetailPage = () => {
 
         {/* iOS Segmented Control */}
         <div className="flex justify-center mb-6">
-          <div className="bg-gray-200/80 p-1 rounded-xl inline-flex w-full max-w-md">
+          <div className="bg-gray-200/80 dark:bg-slate-700 p-1 rounded-xl inline-flex w-full max-w-md">
             <button
               onClick={() => setActiveTab('result')}
               className={`flex-1 py-1.5 px-4 rounded-[9px] text-[13px] font-medium transition-all duration-200 ${
                 activeTab === 'result'
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-gray-600 hover:text-black'
+                  ? 'bg-white dark:bg-slate-900 text-black dark:text-slate-100 shadow-sm'
+                  : 'text-gray-600 dark:text-slate-300 hover:text-black dark:hover:text-slate-100'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -515,8 +525,8 @@ const SessionDetailPage = () => {
               onClick={() => setActiveTab('compare')}
               className={`flex-1 py-1.5 px-4 rounded-[9px] text-[13px] font-medium transition-all duration-200 ${
                 activeTab === 'compare'
-                  ? 'bg-white text-black shadow-sm'
-                  : 'text-gray-600 hover:text-black'
+                  ? 'bg-white dark:bg-slate-900 text-black dark:text-slate-100 shadow-sm'
+                  : 'text-gray-600 dark:text-slate-300 hover:text-black dark:hover:text-slate-100'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -531,23 +541,23 @@ const SessionDetailPage = () => {
         <div className="space-y-6">
           {activeTab === 'result' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-2 lg:order-2">
-                <div className="p-3 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-2 lg:order-2">
+                <div className="p-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-[15px] font-semibold text-black ml-2">
+                    <h3 className="text-[15px] font-semibold text-black dark:text-slate-100 ml-2">
                       {shouldShowResultSwitch()
                         ? (resultViewMode === 'enhanced' ? '增强后的文本' : '润色后的文本')
                         : '优化后的文本'}
                     </h3>
 
                     {shouldShowResultSwitch() && (
-                      <div className="bg-gray-200/80 p-0.5 rounded-lg inline-flex">
+                      <div className="bg-gray-200/80 dark:bg-slate-700 p-0.5 rounded-lg inline-flex">
                         <button
                           onClick={() => setResultViewMode('polished')}
                           className={`py-1 px-3 rounded-md text-[12px] font-medium transition-all ${
                             resultViewMode === 'polished'
-                              ? 'bg-white text-black shadow-sm'
-                              : 'text-gray-600 hover:text-black'
+                              ? 'bg-white dark:bg-slate-900 text-black dark:text-slate-100 shadow-sm'
+                              : 'text-gray-600 dark:text-slate-300 hover:text-black dark:hover:text-slate-100'
                           }`}
                         >
                           润色
@@ -556,8 +566,8 @@ const SessionDetailPage = () => {
                           onClick={() => setResultViewMode('enhanced')}
                           className={`py-1 px-3 rounded-md text-[12px] font-medium transition-all ${
                             resultViewMode === 'enhanced'
-                              ? 'bg-white text-black shadow-sm'
-                              : 'text-gray-600 hover:text-black'
+                              ? 'bg-white dark:bg-slate-900 text-black dark:text-slate-100 shadow-sm'
+                              : 'text-gray-600 dark:text-slate-300 hover:text-black dark:hover:text-slate-100'
                           }`}
                         >
                           增强
@@ -567,7 +577,7 @@ const SessionDetailPage = () => {
                   </div>
 
                   <button
-                    className="text-ios-blue text-[13px] px-3 py-1 hover:bg-blue-50 rounded-md transition-colors"
+                    className="text-ios-blue dark:text-blue-300 text-[13px] px-3 py-1 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-md transition-colors"
                     onClick={() => {
                         navigator.clipboard.writeText(getDisplayText());
                         toast.success('已复制到剪贴板');
@@ -576,8 +586,8 @@ const SessionDetailPage = () => {
                     复制全文
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5 bg-white custom-scrollbar">
-                  <div className="whitespace-pre-wrap font-sans text-[16px] text-black leading-relaxed space-y-4">
+                <div className="flex-1 overflow-y-auto p-5 bg-white dark:bg-slate-900 custom-scrollbar">
+                  <div className="whitespace-pre-wrap font-sans text-[16px] text-black dark:text-slate-100 leading-relaxed space-y-4">
                     {sortedSegments
                       .map((seg) => (
                         <p key={seg.id || seg.segment_index}>
@@ -591,14 +601,14 @@ const SessionDetailPage = () => {
                 </div>
               </div>
               
-              <div className="bg-white rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-1 lg:order-1">
-                <div className="p-3 bg-gray-50 border-b border-gray-100">
-                  <h3 className="text-[15px] font-semibold text-gray-500 ml-2">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-ios overflow-hidden flex flex-col h-[calc(100vh-180px)] order-1 lg:order-1">
+                <div className="p-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700">
+                  <h3 className="text-[15px] font-semibold text-gray-500 dark:text-slate-400 ml-2">
                     原始文本
                   </h3>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5 bg-gray-50/50 custom-scrollbar">
-                  <pre className="whitespace-pre-wrap font-sans text-[15px] text-gray-500 leading-relaxed">
+                <div className="flex-1 overflow-y-auto p-5 bg-gray-50/50 dark:bg-slate-800/70 custom-scrollbar">
+                  <pre className="whitespace-pre-wrap font-sans text-[15px] text-gray-500 dark:text-slate-400 leading-relaxed">
                     {getOriginalText()}
                   </pre>
                 </div>
@@ -607,29 +617,29 @@ const SessionDetailPage = () => {
           )}
 
           {activeTab === 'compare' && (
-            <div className="bg-white rounded-2xl shadow-ios p-6 min-h-[calc(100vh-180px)]">
-              <h3 className="text-[20px] font-bold text-black mb-6 tracking-tight">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-ios p-6 min-h-[calc(100vh-180px)]">
+              <h3 className="text-[20px] font-bold text-black dark:text-slate-100 mb-6 tracking-tight">
                 变更对照记录
               </h3>
               
               {changes.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                  <div className="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300 dark:text-slate-500">
                     <GitCompare className="w-8 h-8" />
                   </div>
-                  <p className="text-ios-gray">
+                  <p className="text-ios-gray dark:text-slate-400">
                     暂无变更记录
                   </p>
                 </div>
               ) : (
                 <div className="space-y-6">
                   {changes.map((change, index) => (
-                    <div key={change.id} className="border border-gray-100 rounded-xl p-5 hover:shadow-md transition-shadow">
+                    <div key={change.id} className="border border-gray-100 dark:border-slate-700 rounded-xl p-5 hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-2 mb-4">
-                        <span className="bg-blue-50 text-ios-blue text-[11px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">
+                        <span className="bg-blue-50 dark:bg-blue-950 text-ios-blue dark:text-blue-300 text-[11px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">
                           段落 {change.segment_index + 1}
                         </span>
-                        <span className="bg-blue-50 text-ios-blue text-[11px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">
+                        <span className="bg-blue-50 dark:bg-blue-950 text-ios-blue dark:text-blue-300 text-[11px] font-bold px-2 py-1 rounded-md uppercase tracking-wide">
                           {change.stage === 'polish' ? '润色' :
                            change.stage === 'emotion_polish' ? '仅润色' :
                            '增强'}
@@ -638,19 +648,19 @@ const SessionDetailPage = () => {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <h4 className="text-[13px] font-semibold text-ios-gray mb-2 uppercase tracking-wide">
+                          <h4 className="text-[13px] font-semibold text-ios-gray dark:text-slate-400 mb-2 uppercase tracking-wide">
                             修改前
                           </h4>
-                          <div className="bg-red-50/50 border border-red-100 rounded-lg p-4 text-[15px] text-gray-800 leading-relaxed">
+                          <div className="bg-red-50/50 dark:bg-red-950/70 border border-red-100 dark:border-red-900 rounded-lg p-4 text-[15px] text-gray-800 dark:text-slate-200 leading-relaxed">
                             {change.before_text}
                           </div>
                         </div>
                         
                         <div>
-                          <h4 className="text-[13px] font-semibold text-ios-gray mb-2 uppercase tracking-wide">
+                          <h4 className="text-[13px] font-semibold text-ios-gray dark:text-slate-400 mb-2 uppercase tracking-wide">
                             修改后
                           </h4>
-                          <div className="bg-green-50/50 border border-green-100 rounded-lg p-4 text-[15px] text-black leading-relaxed font-medium whitespace-pre-wrap">
+                          <div className="bg-green-50/50 dark:bg-emerald-950/70 border border-green-100 dark:border-emerald-900 rounded-lg p-4 text-[15px] text-black dark:text-slate-100 leading-relaxed font-medium whitespace-pre-wrap">
                             <HighlightedText originalText={change.before_text} modifiedText={change.after_text} />
                           </div>
                         </div>
@@ -667,40 +677,40 @@ const SessionDetailPage = () => {
       {/* 导出确认模态框 - iOS Alert Style */}
       {showExportModal && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
-          <div className="bg-white rounded-[14px] shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[14px] shadow-2xl max-w-sm w-full overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-6 h-6 text-ios-orange" />
+              <div className="w-12 h-12 bg-yellow-100 dark:bg-amber-900 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-6 h-6 text-ios-orange dark:text-orange-300" />
               </div>
-              <h2 className="text-[17px] font-semibold text-black mb-2">
+              <h2 className="text-[17px] font-semibold text-black dark:text-slate-100 mb-2">
                 学术诚信确认
               </h2>
-              <p className="text-[13px] text-black mb-4">
+              <p className="text-[13px] text-black dark:text-slate-100 mb-4">
                 请确认您已审核所有内容，并对最终论文负责。
               </p>
 
-              <div className="bg-gray-50 rounded-lg p-3 text-left mb-4">
-                <ul className="space-y-1.5 text-[12px] text-gray-600">
+              <div className="bg-gray-50 dark:bg-slate-800 rounded-lg p-3 text-left mb-4">
+                <ul className="space-y-1.5 text-[12px] text-gray-600 dark:text-slate-300">
                   <li className="flex items-start gap-2">
-                    <span className="text-ios-green font-bold">✓</span> 符合学术规范
+                    <span className="text-ios-green dark:text-emerald-300 font-bold">✓</span> 符合学术规范
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-ios-green font-bold">✓</span> 核心观点原创
+                    <span className="text-ios-green dark:text-emerald-300 font-bold">✓</span> 核心观点原创
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="text-ios-green font-bold">✓</span> 承担全部责任
+                    <span className="text-ios-green dark:text-emerald-300 font-bold">✓</span> 承担全部责任
                   </li>
                 </ul>
               </div>
 
               <div className="mb-4">
-                <label className="block text-[12px] font-medium text-ios-gray mb-1.5 text-left">
+                <label className="block text-[12px] font-medium text-ios-gray dark:text-slate-400 mb-1.5 text-left">
                   导出格式
                 </label>
                 <select
                   value={exportFormat}
                   disabled
-                  className="w-full px-3 py-2 bg-gray-100 rounded-lg text-[15px] border-none focus:ring-0 disabled:cursor-not-allowed"
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-slate-800 rounded-lg text-[15px] border-none focus:ring-0 disabled:cursor-not-allowed"
                 >
                   {exportFormat === 'txt' && <option value="txt">文本文件 (.txt)</option>}
                   {exportFormat === 'md' && <option value="md">Markdown 文档 (.md)</option>}
@@ -714,16 +724,16 @@ const SessionDetailPage = () => {
               </div>
             </div>
 
-            <div className="flex border-t border-gray-200 divide-x divide-gray-200">
+            <div className="flex border-t border-gray-200 dark:border-slate-600 divide-x divide-gray-200">
               <button
                 onClick={() => setShowExportModal(false)}
-                className="flex-1 py-3.5 text-[17px] font-normal text-ios-blue hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                className="flex-1 py-3.5 text-[17px] font-normal text-ios-blue dark:text-blue-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:bg-gray-100 transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={() => handleExport(true)}
-                className="flex-1 py-3.5 text-[17px] font-semibold text-ios-blue hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                className="flex-1 py-3.5 text-[17px] font-semibold text-ios-blue dark:text-blue-300 hover:bg-gray-50 dark:hover:bg-slate-700 active:bg-gray-100 transition-colors"
               >
                 确认导出
               </button>

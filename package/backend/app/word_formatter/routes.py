@@ -15,7 +15,8 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from openai import APIError, APITimeoutError, AsyncOpenAI, AuthenticationError, PermissionDeniedError
 from sqlalchemy.orm import Session
 from sse_starlette.sse import EventSourceResponse
 
@@ -748,6 +749,37 @@ async def list_jobs(
 
 
 # ============ Preprocess API Endpoints ============
+
+class ApiModelsRequest(BaseModel):
+    api_key: str = Field(min_length=1, max_length=4096)
+    base_url: HttpUrl
+
+
+@router.post("/preprocess/models", response_model=list[str])
+async def list_preprocess_models(
+    request: ApiModelsRequest,
+    card_key: str,
+    db: Session = Depends(get_db),
+):
+    """List the models available for the supplied API configuration."""
+    get_current_user(card_key, db)
+    api_key = request.api_key.strip()
+    base_url = request.base_url
+    if not api_key or base_url.username or base_url.password or base_url.query or base_url.fragment:
+        raise HTTPException(status_code=400, detail="请填写有效的 API Key 和 Base URL")
+    try:
+        async with AsyncOpenAI(
+            api_key=api_key, base_url=str(base_url), timeout=12.0, max_retries=0
+        ) as client:
+            page = await client.models.list()
+        return sorted({model.id.strip() for model in page.data if model.id.strip()})
+    except APITimeoutError as exc:
+        raise HTTPException(status_code=504, detail="获取模型列表超时，可手动填写模型") from exc
+    except (AuthenticationError, PermissionDeniedError) as exc:
+        raise HTTPException(status_code=401, detail="无法读取模型列表，请检查 API Key 和权限") from exc
+    except (APIError, ValueError, AttributeError, TypeError) as exc:
+        raise HTTPException(status_code=502, detail="无法获取模型列表，可手动填写模型") from exc
+
 
 @router.post("/preprocess/test-connection")
 async def test_preprocess_connection(

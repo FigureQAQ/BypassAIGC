@@ -1,221 +1,106 @@
 # BypassAIGC
 
-面向中文学术文章和一般长文本的本地预处理工具。项目通过兼容 OpenAI API 的模型接口，对文本或文档进行分段、结构识别和预处理，并尽量保持原始文档结构。
-
-[![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases/latest)
+[![Release](https://img.shields.io/github/v/release/FigureQAQ/BypassAIGC?display_name=tag)](https://github.com/FigureQAQ/BypassAIGC/releases)
 [![Build](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml/badge.svg)](https://github.com/FigureQAQ/BypassAIGC/actions/workflows/build-exe.yml)
 
-当前版本：**v2.8.17**（2026-08-29）
+BypassAIGC 是一个面向中文学术文章和一般长文本的本地编辑工作台。使用兼容 OpenAI API 的模型服务，润色或改写粘贴的文本和上传的文档，逐段对照修改结果，再按源文件类型导出。
 
-## 主要功能
+[快速开始](#快速开始) · [API 配置](#api-配置) · [处理与导出](#处理与导出) · [工作目录与隐私](#工作目录与隐私) · [更新日志](CHANGELOG.md)
 
-- 文章预处理：按段落和字符数分块，识别标题、摘要、正文、列表、表格、图片、代码和参考文献等结构。
-- 多种输入：支持直接粘贴文本，以及上传 `.docx`、`.pdf`、`.txt` 和 `.md` 文件。
-- 多种输出：支持文本结果预览、处理状态实时更新，以及按原格式下载可用结果。
-- 四种处理模式：可单独降低 AIGC 率、单独降低重复率、同时降低两项，或仅进行语言润色。
-- 进度预览：实时显示当前处理阶段、完成百分比、段落位置和处理状态。
-- 原格式导出：文本输出为 `.txt`，Markdown 输出为 `.md`，Word 输出为 `.docx`，PDF 输出为 `.pdf`；Word 和 Markdown 尽量保留原文档结构。
-- API 配置：用户在页面中输入 API Key、Base URL 和模型后即可使用。
-- 配置记忆：API 配置保存在当前浏览器的 `localStorage` 中，下次打开无需重复配置。
-- 本地运行：后端默认监听 `9800` 端口，适合个人电脑或局域网环境使用。
+![夜间模式工作台，显示处理方式、已添加的 Markdown 文件和历史任务用时](docs/screenshots/workspace-night.webp)
 
-### 工作环境
+点击工作台或会话详情右上角的太阳／月亮图标切换主题。当前浏览器会记住选择。本文截图使用示例数据，展示的是当前分支的界面。
 
-程序所在目录即为工作环境，首次启动会自动创建：
+<details>
+<summary>查看日间模式</summary>
 
-- `BypassAIGC.exe`：软件程序。
-- `.env`：环境变量和默认 API 配置。
-- `ai_polish.db`：本地任务和使用记录数据库。
-- `logs/`：运行日志和脱敏错误报告。
-- `input/`：用户提交的文本和文档副本。
-- `output/`：预处理结果和格式化结果副本。
+![日间模式工作台，显示处理方式、文档上传区和历史记录](docs/screenshots/workspace-day.webp)
 
-错误报告默认只保存到本地，不会自动上传文档内容或 API Key。若确有需要，可在 `.env` 中配置可信的私有 `ERROR_REPORT_URL`，并将 `AUTO_UPLOAD_ERROR_LOGS` 设置为 `true`；上报内容会先脱敏。
-
-### 错误码
-
-- `E1001`：API 配置缺失。
-- `E1002`：API Key 无效或认证失败。
-- `E1003`：API 请求失败。
-- `E1004`：API 请求超时。
-- `E2001`：输入参数无效。
-- `E2002`：文件类型不支持。
-- `E2003`：文件读取或解析失败。
-- `E3001`：任务不存在。
-- `E3002`：任务执行失败。
-- `E9001`：服务器内部错误。
-
-### 处理模式
-
-在文章预处理页面中，用户可以选择以下任一模式：
-
-1. **降低 AIGC 率**：优化语言表达，降低文本的 AI 痕迹。
-2. **降低重复率**：改写文本表达，降低与已有内容的重复程度。
-3. **降低 AIGC 率 + 降低重复率**：先进行 AIGC 率优化，再进行重复率优化。
-4. **仅润色**：改善语言流畅度和表达质量，不执行降低 AIGC 率或降低重复率处理。
-
-四种模式均支持直接粘贴文本和上传文档，处理流程会根据所选模式执行对应阶段。
-
-## v2.8.8 变更
-
-- 取消账号登录、注册、管理员登录和管理后台。
-- 删除前端账号管理、管理员管理、提示词管理、数据库管理和会话监控等多余模块。
-- 程序启动后直接进入文章预处理页面，根路径 `/` 自动跳转到 `/article-preprocessor`。
-- 移除前端认证令牌和登录失效跳转逻辑，所有请求使用本地访问身份完成任务关联。
-- 打包启动入口不再注册 `/api/auth/*`、`/api/admin/*` 路由，也不再生成管理员密码配置。
-- 后端与前端版本号统一为 `2.8.8`。
-
-## v2.8.10 修复
-
-- 修复旧版本数据库只有随机本地卡密时，新版固定使用 `local-use` 导致“无效的卡密”的问题。
-- 启动时自动确保 `local-use` 本地身份存在，并兼容旧的本地访问身份。
-
-## v2.8.11 修复
-
-- Windows 打包版改为无控制台窗口运行，避免双击时黑色窗口一闪而过造成误判。
-- 重复双击时检测已运行服务并打开现有文章预处理页面。
-- 启动时自动将旧版 GPT/OpenAI 默认配置迁移为 DeepSeek。
-- 浏览器中遗留的 GPT 默认模型和 OpenAI 默认地址会自动迁移为 DeepSeek。
-
-## v2.8.12 修复
-
-- 修复 Windows 无控制台模式下 `sys.stdout` 和 `sys.stderr` 为空导致启动中断的问题。
-- 保留无黑框启动体验，同时确保后台服务可以正常监听 `9800` 端口。
-
-## v2.8.13 变更
-
-- 保留并明确展示三种核心处理模式：降低 AIGC 率、降低重复率、同时降低 AIGC 率和重复率。
-- 统一前端处理模式名称和进度提示，避免将“降低重复率”简写为“降重”造成理解歧义。
-- 同步更新前后端版本号及发布文档。
-
-## v2.8.14 变更
-
-- 新增“仅润色”模式，仅改善语言表达和流畅度，不执行降低 AIGC 率或降低重复率处理。
-- 保留原有三种处理模式及其处理逻辑。
-
-## v2.8.15 变更
-
-- 增加实时进度预览，显示当前处理阶段、进度百分比和段落处理位置。
-- 导出时自动按照源文件类型选择输出格式，避免文档被导出为不匹配的格式。
-- Word 和 Markdown 输入继续使用保格式导出逻辑；PDF 使用 PDF 输出，纯文本使用 TXT 输出。
-
-## v2.8.17 修复
-
-- 修复会话详情页不显示任务进度条的问题，增加持续进度轮询和完成后自动刷新。
-- 修复历史上下文消息结构不完整导致部分段落重复或被续写的问题。
-- 修复流式结果前端重复拼接的问题，优先使用服务端累计文本。
-- 修复 API 请求间隔配置被读取为字符串时引发的任务失败。
-
-## v2.8.16 修复
-
-- 修复文章预处理任务创建接口等待异步 AI 任务完成，导致页面长期停留在“正在初始化预处理任务...”的问题。
-- 预处理接口现在先返回任务编号，前端通过实时进度流继续显示分割、标记和校验进度。
-- 增加预处理请求超时提示，避免网络异常时页面无限等待。
+</details>
 
 ## 快速开始
 
-### 使用 Release
+### 下载发布版
 
-从 [GitHub Releases](https://github.com/FigureQAQ/BypassAIGC/releases) 下载对应系统的压缩包：
+在 [GitHub Releases](https://github.com/FigureQAQ/BypassAIGC/releases) 下载并解压对应系统的包。Windows 双击 `BypassAIGC.exe`，Linux 和 macOS 可在解压目录运行 `./BypassAIGC`。程序会打开浏览器，也可手动访问 `http://localhost:9800/workspace`。
 
-- Windows：`BypassAIGC-Windows-vX.X.X.zip`
-- Linux：`BypassAIGC-Linux-vX.X.X.tar.gz`
-- macOS：`BypassAIGC-macOS-vX.X.X.tar.gz`
+发布包以对应版本的功能为准。要试用本文展示的界面，请运行当前分支的源码。
 
-解压后运行对应的启动脚本或可执行文件。程序启动后会打开浏览器并进入文章预处理页面：
+### 从源码运行（Windows）
 
-```text
-http://localhost:9800/article-preprocessor
-```
-
-### 源码运行
-
-环境要求：
-
-- Python 3.10 或更高版本
-- Node.js 18 或更高版本
-- npm
-
-在仓库根目录执行：
+安装 Python 3.11、Node.js 20 和 npm，进入检出的仓库根目录后，在 PowerShell 中执行：
 
 ```powershell
 .\start.bat
 ```
 
-启动脚本会创建 Python 虚拟环境、安装依赖、构建前端并启动服务。手动开发时，可分别在 `package/backend` 和 `package/frontend` 中安装依赖并启动后端、前端。
+脚本会创建 Python 虚拟环境、安装依赖并启动前后端。工作台默认在 `http://127.0.0.1:5174/workspace`，后端默认在 `http://127.0.0.1:9800`。如需停止源码服务，在仓库根目录运行 `.\stop.bat`。
 
 ## API 配置
 
-首次进入文章预处理页面时，在“API 配置”区域填写：
+1. 点击工作台右上角的 **API 配置** 图标，填写服务商提供的 **API Key** 和 **Base URL**。若服务商提供的地址带 `/v1`，按原样填写。
+2. 等待可用模型自动加载，从下拉列表选择模型。可点击 **刷新模型** 重新获取。服务商未提供模型列表时，可直接填写模型名称。
+3. 点击 **测试连接** 确认所选模型可以响应。配置修改后会保存在当前浏览器。
 
-| 配置项 | 说明 | DeepSeek 示例 |
+<img src="docs/screenshots/api-models.webp" width="481" alt="API 配置面板，密钥已遮挡，下方显示可用模型、刷新模型和测试连接按钮">
+
+如需设置后端默认配置，可复制 [`.env.example`](.env.example) 为 `.env`。源码版可把文件放在仓库根目录，发布版可放在程序同目录。请勿将填写了真实密钥的 `.env` 提交到版本库。
+
+## 处理与导出
+
+1. 选择处理方式。**仅润色**侧重语言流畅度。另外可选择降低 AIGC 率、降低重复率，或依次执行两项处理。结果需自行审核。
+2. 粘贴文本，或将一个文件拖入编辑区。也可点击 **上传文档** 选择文件。
+3. 点击 **开始处理**。进度卡显示处理阶段、百分比和段落进度。任务完成后，进度卡、历史记录和会话详情都会显示总用时，包含排队时间。
+4. 从历史记录打开会话，核对原文和修改结果。点击 **导出**，按源文件类型下载结果。
+
+![会话详情显示处理用时、文档统计、原文与高亮修改结果，右上角有导出按钮](docs/screenshots/task-result.webp)
+
+| 输入 | 导出 | 格式说明 |
 | --- | --- | --- |
-| API Key | 个人模型服务密钥 | `sk-...` |
-| Base URL | OpenAI 兼容接口地址 | `https://api.deepseek.com` |
-| 模型 | 服务商提供的模型名称 | `deepseek-v4-flash` |
+| 粘贴文本、`.txt` | `.txt` | TXT 支持 UTF-8、UTF-8 BOM 和 GB18030。 |
+| `.md`、`.markdown` | `.md` | 尽量保留 Markdown 结构与未修改部分的排版。 |
+| `.docx` | `.docx` | 尽量保留标题、表格、图片和原始样式。 |
+| `.pdf` | `.pdf` | 从可提取文本的 PDF 中读取文字，导出时重新排版。扫描件通常需要先做 OCR。 |
 
-点击保存后即可处理文本或文档。配置只保存在当前浏览器，不会写入 Git 仓库，也不会由项目 README 或示例配置文件保存真实密钥。更换浏览器、清除站点数据或使用无痕窗口后，需要重新输入配置。
+## 工作目录与隐私
 
-除 DeepSeek 外，也可以使用其他提供 OpenAI 兼容接口的服务，但必须确认其 Base URL、模型名称、请求格式和上下文长度符合服务商文档。
+运行时会使用本地数据库 `ai_polish.db` 记录任务。`input/`、`output/` 和 `logs/` 分别保存输入副本、输出副本和运行记录。发布版通常使用程序所在目录，源码版默认使用 `package/backend/`。可通过 `DATABASE_URL` 指定数据库位置，通过 `BYPASSAIGC_WORKSPACE_DIR` 指定输入、输出和日志所用的工作目录。
 
-## 输入与输出说明
+浏览器会保存 API 配置，模型请求会把需要处理的文本发送给你配置的服务商。错误报告默认留在本地。启用 `AUTO_UPLOAD_ERROR_LOGS` 后，脱敏报告会发送到配置的 `ERROR_REPORT_URL`。
 
-- `.docx`：提取可处理的正文内容，尽量保留标题、图片、表格、分页和原始样式。
-- `.pdf`：支持可提取文本的 PDF；扫描件或纯图片 PDF 可能无法识别。
-- `.txt`：兼容 UTF-8、UTF-8 BOM 和 GB18030 编码。
-- `.md`：保留 Markdown 的基本结构。
-- 直接输入：适用于短文本、片段、摘要和 Markdown 内容。
+## 开发与排查
 
-处理过程中请保持浏览器页面打开。任务完成后可在结果区域核对内容，并下载处理结果。超长文档建议适当降低单块字符数，以减少模型上下文超限风险。
+- 后端健康检查 `http://127.0.0.1:9800/health`
+- FastAPI 接口文档 `http://127.0.0.1:9800/docs`
 
-## 本地接口
-
-服务启动后可访问：
-
-- 前端页面：`http://localhost:9800/article-preprocessor`
-- 健康检查：`http://localhost:9800/health`
-- API 文档：`http://localhost:9800/docs`
-
-本版本不提供账号登录和管理员后台；不要再访问或配置 `/admin`、`/api/admin/*` 和 `/api/auth/*`。
-
-## 配置文件
-
-源码启动时可在仓库根目录创建 `.env`。至少需要配置模型服务信息：
-
-```properties
-OPENAI_API_KEY=your-api-key-here
-OPENAI_BASE_URL=https://api.deepseek.com
-POLISH_MODEL=deepseek-v4-flash
-ENHANCE_MODEL=deepseek-v4-flash
-SERVER_HOST=127.0.0.1
-SERVER_PORT=9800
-```
-
-如果已经在网页中保存 API 配置，前端请求会优先携带当前浏览器中的配置，无需每次重新编辑 `.env`。`.env` 仅用于后端默认配置，切勿将真实 API Key 提交到 Git。
-
-## 开发与验证
-
-后端测试：
+后端测试（在 `package/backend/` 中运行）：
 
 ```powershell
-cd package/backend
-pytest
+python -m pip install -r requirements.txt pytest
+python -m pytest -q
 ```
 
-前端构建：
+前端构建（在 `package/frontend/` 中运行）：
 
 ```powershell
-cd package/frontend
+npm ci
 npm run build
 ```
 
-## 数据与隐私
+<details>
+<summary>常见错误码</summary>
 
-- API Key 保存在当前浏览器的站点本地存储中，并通过请求发送到用户配置的模型服务。
-- 文本和文档内容会发送到用户填写的模型服务商，请先阅读对应服务商的隐私政策和数据处理条款。
-- 本项目不提供云端账号体系，不负责托管用户 API Key 或长期保存用户原文。
-- 本地任务数据和数据库文件通常位于运行目录，请根据需要自行备份或清理。
+| 类别 | 错误码 |
+| --- | --- |
+| API 配置或请求 | `E1001` 缺少配置，`E1002` 认证失败，`E1003` 请求失败，`E1004` 请求超时 |
+| 文本或文档输入 | `E2001` 参数无效，`E2002` 文件类型不支持，`E2003` 文件读取或解析失败 |
+| 任务 | `E3001` 任务不存在，`E3002` 任务执行失败 |
+| 服务 | `E9001` 内部错误，可在 `logs/` 查看详情 |
+
+</details>
+
+历史版本的功能和修复见 [更新日志](CHANGELOG.md)。
 
 ## 许可证
 
-请以仓库中的许可证文件为准。
+项目采用 [CC BY-NC-SA 4.0](LICENSE) 许可。
