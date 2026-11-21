@@ -230,9 +230,13 @@ export const wordFormatterAPI = {
     return `${baseUrl}/word-formatter/jobs/${jobId}/stream?card_key=${cardKey}`;
   },
 
+  listModels: (data, signal) =>
+    api.post('/word-formatter/preprocess/models', data, { signal, timeout: 15000 }),
+
   // Preprocess text
-  testPreprocessConnection: (data) =>
+  testPreprocessConnection: (data, signal) =>
     api.post('/word-formatter/preprocess/test-connection', data, {
+      signal,
       timeout: 25000,
     }),
   preprocessText: (text, options = {}) =>

@@ -320,6 +320,7 @@ async def get_session_detail(
     
     return SessionDetailResponse(
         **session.__dict__,
+        elapsed_seconds=session.elapsed_seconds,
         segments=[seg.__dict__ for seg in segments]
     )
 
@@ -349,7 +350,8 @@ async def get_session_progress(
         current_position=session.current_position,
         total_segments=session.total_segments,
         current_stage=session.current_stage,
-        error_message=session.error_message
+        error_message=session.error_message,
+        elapsed_seconds=session.elapsed_seconds,
     )
 
 

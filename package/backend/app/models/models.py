@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Float, LargeBinary
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from typing import Optional
 from app.database import Base
 from app.config import settings
 
@@ -97,6 +98,19 @@ class OptimizationSession(Base):
     user = relationship("User", back_populates="sessions")
     segments = relationship("OptimizationSegment", back_populates="session", cascade="all, delete-orphan")
     history = relationship("SessionHistory", back_populates="session", cascade="all, delete-orphan")
+
+    @property
+    def elapsed_seconds(self) -> Optional[float]:
+        """Return wall-clock task time, including time spent in the queue."""
+        if self.status == "completed":
+            end = self.completed_at
+        elif self.status in {"queued", "processing"}:
+            end = datetime.utcnow()
+        else:
+            return None
+        if self.created_at is None or end is None:
+            return None
+        return max(0.0, (end - self.created_at).total_seconds())
 
     @property
     def completed_segments(self) -> int:

@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useLayoutEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
@@ -16,6 +16,15 @@ const PageLoader = () => (
 );
 
 function App() {
+  const [theme, setTheme] = useState(() => (
+    localStorage.getItem('workspaceTheme') === 'light' ? 'light' : 'dark'
+  ));
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('workspaceTheme', theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme((value) => value === 'dark' ? 'light' : 'dark');
+
   return (
     <BrowserRouter>
       <Toaster
@@ -23,8 +32,8 @@ function App() {
         toastOptions={{
           duration: 3000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: 'var(--toast-background)',
+            color: 'var(--toast-color)',
           },
           success: {
             duration: 3000,
@@ -46,8 +55,8 @@ function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/workspace" replace />} />
-          <Route path="/workspace" element={<WorkspacePage />} />
-          <Route path="/session/:sessionId" element={<SessionDetailPage />} />
+          <Route path="/workspace" element={<WorkspacePage theme={theme} onToggleTheme={toggleTheme} />} />
+          <Route path="/session/:sessionId" element={<SessionDetailPage theme={theme} onToggleTheme={toggleTheme} />} />
           <Route path="*" element={<Navigate to="/workspace" replace />} />
         </Routes>
       </Suspense>
