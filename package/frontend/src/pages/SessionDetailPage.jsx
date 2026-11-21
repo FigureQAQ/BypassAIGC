@@ -347,7 +347,7 @@ const SessionDetailPage = () => {
   }
 
   const rawProgress = Number(session.progress || 0);
-  const progressPercent = Math.round(Math.max(0, Math.min(100, rawProgress <= 1 ? rawProgress * 100 : rawProgress)));
+  const progressPercent = Math.floor(Math.max(0, Math.min(100, rawProgress)));
   const isActive = session.status === 'processing' || session.status === 'queued';
 
   return (

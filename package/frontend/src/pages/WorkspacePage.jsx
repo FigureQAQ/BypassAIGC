@@ -22,7 +22,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { optimizationAPI, wordFormatterAPI } from '../api';
+import { getSavedModel, optimizationAPI, wordFormatterAPI } from '../api';
 
 const MODES = [
   { id: 'paper_polish', title: '降低 AIGC 率', description: '降低机器生成痕迹，保持原意与结构。', accent: 'blue' },
@@ -31,14 +31,11 @@ const MODES = [
   { id: 'emotion_polish', title: '仅润色', description: '优化语句、语气和阅读流畅度。', accent: 'amber' },
 ];
 
-const getSavedConfig = () => {
-  const savedModel = localStorage.getItem('userModel') || '';
-  return {
-    apiKey: localStorage.getItem('userApiKey') || '',
-    baseUrl: localStorage.getItem('userBaseUrl') || 'https://api.deepseek.com',
-    model: savedModel && !savedModel.toLowerCase().startsWith('gpt') ? savedModel : 'deepseek-v4-flash',
-  };
-};
+const getSavedConfig = () => ({
+  apiKey: localStorage.getItem('userApiKey') || '',
+  baseUrl: localStorage.getItem('userBaseUrl') || 'https://api.deepseek.com',
+  model: getSavedModel(),
+});
 
 const getSavedMode = () => localStorage.getItem('processingMode') || 'paper_polish_enhance';
 
@@ -55,7 +52,6 @@ const statusText = (status) => ({
 function WorkspacePage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
-  const pollRef = useRef(null);
   const [inputMode, setInputMode] = useState('text');
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
@@ -119,7 +115,6 @@ function WorkspacePage() {
 
   useEffect(() => {
     loadSessions();
-    return () => clearInterval(pollRef.current);
   }, [loadSessions]);
 
   useEffect(() => {
@@ -135,26 +130,36 @@ function WorkspacePage() {
     return () => clearTimeout(timer);
   }, [config, checkApi]);
 
-  const pollProgress = useCallback((sessionId) => {
-    clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
+  useEffect(() => {
+    if (!activeSession) return undefined;
+
+    let disposed = false;
+    let timer;
+    const pollProgress = async () => {
       try {
-        const response = await optimizationAPI.getSessionProgress(sessionId);
-        const next = response.data;
+        const { data: next } = await optimizationAPI.getSessionProgress(activeSession);
+        if (disposed) return;
         setProgress(next);
         if (['completed', 'failed', 'stopped'].includes(next.status)) {
-          clearInterval(pollRef.current);
           setActiveSession(null);
           if (next.status === 'failed') {
-            toast.error(next.error_message || next.error || '处理失败，请查看任务详情');
+            toast.error(next.error_message || '处理失败，请查看任务详情');
           }
           await loadSessions();
+          return;
         }
       } catch (error) {
-        console.warn('获取任务进度失败', error);
+        if (!disposed) console.warn('获取任务进度失败', error);
       }
-    }, 1500);
-  }, [loadSessions]);
+      if (!disposed) timer = window.setTimeout(pollProgress, 1500);
+    };
+
+    pollProgress();
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [activeSession, loadSessions]);
 
   const submit = async () => {
     if (!config.apiKey.trim()) {
@@ -197,7 +202,6 @@ function WorkspacePage() {
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await loadSessions();
-      pollProgress(sessionId);
       toast.success('任务已开始处理');
     } catch (error) {
       toast.error(`启动失败：${errorText(error)}`);
@@ -211,7 +215,6 @@ function WorkspacePage() {
     setStopping(true);
     try {
       await optimizationAPI.stopSession(activeSession);
-      clearInterval(pollRef.current);
       setProgress((current) => ({ ...current, status: 'stopped' }));
       setActiveSession(null);
       await loadSessions();
@@ -250,7 +253,11 @@ function WorkspacePage() {
   }).slice(0, 8);
 
   const rawProgress = Number(progress?.progress || 0);
-  const percent = Math.round(Math.max(0, Math.min(100, rawProgress <= 1 ? rawProgress * 100 : rawProgress)));
+  const percent = Math.floor(Math.max(0, Math.min(100, rawProgress)));
+  const totalSegments = progress?.total_segments || 0;
+  const processedSegments = progress?.status === 'completed'
+    ? totalSegments
+    : Math.min(progress?.current_position || 0, totalSegments);
 
   return (
     <main className="workspace-shell">
@@ -301,7 +308,7 @@ function WorkspacePage() {
           {inputMode === 'text' ? <textarea className="text-editor" value={text} onChange={(event) => setText(event.target.value)} placeholder="在这里粘贴或输入文章内容…" /> : <div className={`drop-zone ${file ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}><input ref={fileInputRef} type="file" hidden accept=".txt,.md,.markdown,.docx,.pdf" onChange={(event) => selectFile(event.target.files?.[0])} />{file ? <><FileText size={32} /><strong>{file.name}</strong><span>{(file.size / 1024).toFixed(1)} KB · 点击更换文件</span><button className="remove-file" onClick={(event) => { event.stopPropagation(); setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}><X size={15} />移除</button></> : <><Upload size={30} /><strong>拖拽文件到这里，或点击上传</strong><span>支持 TXT、Markdown、DOCX、PDF</span></>}</div>}
           <div className="editor-footer"><span>{inputMode === 'text' ? `${text.length.toLocaleString()} 字` : file ? '已选择 1 个文件' : '尚未选择文件'}</span><div>{activeSession && <button className="stop-button" onClick={stop} disabled={stopping}><Square size={14} />{stopping ? '停止中' : '停止任务'}</button>}<button className="start-button" onClick={submit} disabled={submitting || Boolean(activeSession)}>{submitting ? <Loader2 className="spin" size={17} /> : <Play size={17} fill="currentColor" />}{submitting ? '正在启动…' : activeSession ? '任务处理中' : '开始处理'}</button></div></div>
 
-          {progress && <div className={`progress-card ${progress.status === 'failed' ? 'is-failed' : ''}`}><div className="progress-top"><div><strong>当前任务</strong><span>{progress.current_stage || statusText(progress.status)}</span></div><b>{percent}%</b></div><div className="progress-track"><i style={{ width: `${percent}%` }} /></div><div className="progress-meta"><span><Clock3 size={14} />{statusText(progress.status)}</span><span>{progress.completed_segments || 0}/{progress.total_segments || '—'} 段</span></div>{progress.status === 'failed' && (progress.error_message || progress.error) && <p className="progress-error">{progress.error_message || progress.error}</p>}</div>}
+          {progress && <div className={`progress-card ${progress.status === 'failed' ? 'is-failed' : ''}`}><div className="progress-top"><div><strong>当前任务</strong><span>{progress.current_stage || statusText(progress.status)}</span></div><b>{percent}%</b></div><div className="progress-track"><i style={{ width: `${percent}%` }} /></div><div className="progress-meta"><span><Clock3 size={14} />{statusText(progress.status)}</span><span>{processedSegments}/{totalSegments || '—'} 段</span></div>{progress.status === 'failed' && (progress.error_message || progress.error) && <p className="progress-error">{progress.error_message || progress.error}</p>}</div>}
         </section>
 
         <aside className="history-panel"><div className="section-heading"><div><p className="eyebrow">RECENT</p><h2><History size={20} />历史记录</h2></div><span className="history-count">{sessions.length}</span></div><div className="history-search"><Search size={15} /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="搜索历史记录" /></div><div className="history-list">{visibleSessions.length ? visibleSessions.map((session) => <div className={`history-item ${activeSession === session.session_id ? 'active' : ''}`} key={session.session_id} onClick={() => navigate(`/session/${session.session_id}`)}><div className="history-icon">{session.status === 'completed' ? <CheckCircle2 size={17} /> : <FileText size={17} />}</div><div className="history-content"><strong>{session.source_filename || '文本任务'}</strong><span>{statusText(session.status)} · {session.created_at ? new Date(session.created_at).toLocaleDateString() : '刚刚'}</span></div><button onClick={(event) => { event.stopPropagation(); deleteSession(session); }} title="删除"><Trash2 size={15} /></button></div>) : <div className="empty-history"><History size={28} /><span>还没有处理记录</span><small>完成一次处理后，记录会显示在这里</small></div>}</div></aside>

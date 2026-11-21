@@ -20,6 +20,7 @@ DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.docu
 PDF_MIME = "application/pdf"
 TXT_MIME = "text/plain; charset=utf-8"
 MD_MIME = "text/markdown; charset=utf-8"
+MARKDOWN_LINE_ENDING = re.compile(r"\r\n|\r|\n")
 
 
 @dataclass
@@ -135,22 +136,27 @@ def _build_preserved_markdown(session: OptimizationSession, segments: List[Optim
 
         start = meta.get("source_offset_start")
         end = meta.get("source_offset_end")
-        if not isinstance(start, int) or not isinstance(end, int) or start < 0 or end < start:
+        if not isinstance(start, int) or not isinstance(end, int) or not 0 <= start < end <= len(source):
             continue
-        replacements.append((start, end, _final_segment_text(segment)))
+        replacement = _final_segment_text(segment)
+        replacements.append((start, end, None if replacement == segment.original_text else replacement))
 
     if not replacements:
         raise ValueError("No Markdown blocks are available for preserved export")
 
+    source_line_ending = MARKDOWN_LINE_ENDING.search(source)
     result_parts = []
     cursor = 0
     for start, end, replacement in sorted(replacements, key=lambda item: item[0]):
-        if start < cursor:
+        if replacement is None or start < cursor:
             continue
         result_parts.append(source[cursor:start])
         original_block = source[start:end]
         leading = original_block[:len(original_block) - len(original_block.lstrip())]
-        trailing = "\n" if original_block.endswith("\n") else ""
+        trailing = original_block[len(original_block.rstrip()):]
+        line_ending = MARKDOWN_LINE_ENDING.search(original_block) or source_line_ending
+        if line_ending:
+            replacement = MARKDOWN_LINE_ENDING.sub(line_ending.group(), replacement)
         result_parts.append(f"{leading}{replacement}{trailing}")
         cursor = end
     result_parts.append(source[cursor:])
